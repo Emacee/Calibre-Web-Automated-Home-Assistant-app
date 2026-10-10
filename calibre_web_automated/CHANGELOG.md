@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.8.1
+
+- Use Home Assistant's current app conventions: map type `app_config`
+  instead of the legacy `addon_config` (same folder, still mounted at
+  `/config`), no hardcoded `io.hass.*` image labels
+- Documentation uses the new "apps" naming
+
 ## 4.0.8
 
 - Initial release, based on Calibre-Web Automated v4.0.8
