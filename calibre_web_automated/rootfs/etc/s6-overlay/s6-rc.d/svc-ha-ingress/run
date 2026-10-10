@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+# nginx in front of CWA for Home Assistant Ingress (port 8099)
+
+exec nginx -c /etc/nginx/ha-ingress.conf

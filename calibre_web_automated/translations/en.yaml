@@ -1,0 +1,37 @@
+configuration:
+  library_path:
+    name: Calibre library folder
+    description: >-
+      Folder under /share or /media holding your Calibre library
+      (metadata.db). An empty library is created here on first start.
+  ingest_path:
+    name: Ingest folder
+    description: >-
+      Folder under /share or /media for new books. Everything placed here is
+      imported into the library and then DELETED from this folder.
+  hardcover_token:
+    name: Hardcover API token
+    description: >-
+      Optional, enables Hardcover as a metadata provider
+      (https://docs.hardcover.app/api/getting-started/).
+  network_share_mode:
+    name: Network share mode
+    description: >-
+      Turn on when the library or ingest folder is on a network share
+      (NFS/SMB mounted in Home Assistant). Disables SQLite WAL and chown, and
+      switches file watching to polling.
+  watch_mode:
+    name: Ingest watch mode
+    description: >-
+      inotify (default) reacts instantly; poll scans the folder periodically
+      and also works on network shares that do not send file events.
+  disable_library_automount:
+    name: Disable library auto-detection
+    description: >-
+      Skip the startup scan that finds metadata.db in the library folder and
+      configures it automatically.
+  extra_env:
+    name: Extra environment variables
+    description: Advanced, additional CWA environment variables.
+network:
+  8083/tcp: Web interface, OPDS and Kobo sync (direct access)

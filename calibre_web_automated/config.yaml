@@ -1,0 +1,57 @@
+name: Calibre-Web Automated
+version: "4.0.8"
+slug: calibre_web_automated
+description: >-
+  Calibre-Web Automated: e-book library with web reader, automatic ingest,
+  conversion and metadata enforcement, OPDS and Kobo sync.
+url: https://github.com/Emacee/Calibre-Web-Automated-Home-Assistant-app
+arch:
+  - aarch64
+  - amd64
+# The image brings its own s6-overlay v3 init
+init: false
+startup: application
+boot: auto
+
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:bookshelf
+panel_title: Books
+panel_admin: false
+
+# Direct access: needed for e-readers (OPDS, Kobo sync, KOReader sync) and
+# "Send to e-reader" links. Set it to empty in the Network section to make
+# the add-on ingress-only.
+ports:
+  8083/tcp: 8083
+ports_description:
+  8083/tcp: Web interface, OPDS and Kobo sync (direct access)
+
+# /config = CWA settings, users and app.db (addon_config, included in backups)
+# /share and /media = library and ingest folder
+map:
+  - type: addon_config
+    read_only: false
+  - type: share
+    read_only: false
+  - type: media
+    read_only: false
+
+options:
+  library_path: /share/calibre
+  ingest_path: /share/cwa-book-ingest
+  network_share_mode: false
+  watch_mode: inotify
+  disable_library_automount: false
+  extra_env: []
+
+schema:
+  library_path: str
+  ingest_path: str
+  hardcover_token: password?
+  network_share_mode: bool
+  watch_mode: list(inotify|poll)
+  disable_library_automount: bool
+  extra_env:
+    - name: str
+      value: str

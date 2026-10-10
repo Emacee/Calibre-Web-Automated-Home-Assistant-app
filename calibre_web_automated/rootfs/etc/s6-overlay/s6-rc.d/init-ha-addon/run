@@ -1,0 +1,95 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+#
+# Home Assistant glue, runs before CWA's own cwa-init:
+#  - reads the add-on options from /data/options.json
+#  - points /calibre-library and the ingest folder at /share or /media
+#  - exports the options as environment variables for the CWA services
+
+set -e
+
+OPTIONS=/data/options.json
+ENV_DIR=/run/s6/container_environment
+DIRS_JSON=/app/calibre-web-automated/dirs.json
+
+log()      { echo "[ha-addon] $*"; }
+fail()     { echo "[ha-addon] ERROR: $*" >&2; exit 1; }
+opt()      { jq -r "$1 // empty" "$OPTIONS"; }
+opt_bool() { jq -r "if $1 == true then \"true\" else \"false\" end" "$OPTIONS"; }
+setenv()   { printf '%s' "$2" > "$ENV_DIR/$1"; }
+
+[ -f "$OPTIONS" ] || fail "$OPTIONS not found"
+
+# Only /share and /media are mapped into the add-on and survive updates
+check_path() {
+    local path="$1" name="$2"
+    case "$path" in
+        /share/?*|/media/?*) ;;
+        *) fail "$name must be a folder under /share or /media (got '$path')" ;;
+    esac
+    case "$path" in
+        *..*) fail "$name must not contain '..' (got '$path')" ;;
+    esac
+}
+
+LIBRARY_PATH="$(opt '.library_path')"
+INGEST_PATH="$(opt '.ingest_path')"
+LIBRARY_PATH="${LIBRARY_PATH%/}"
+INGEST_PATH="${INGEST_PATH%/}"
+
+check_path "$LIBRARY_PATH" library_path
+check_path "$INGEST_PATH" ingest_path
+
+# Everything placed in the ingest folder is deleted after import, so it must
+# never overlap with the library
+case "$LIBRARY_PATH/" in "$INGEST_PATH/"*) fail "library_path must not be inside ingest_path" ;; esac
+case "$INGEST_PATH/" in "$LIBRARY_PATH/"*) fail "ingest_path must not be inside library_path" ;; esac
+
+NETWORK_SHARE_MODE="$(opt_bool '.network_share_mode')"
+
+mkdir -p "$LIBRARY_PATH" "$INGEST_PATH"
+if [ "$NETWORK_SHARE_MODE" != "true" ]; then
+    chown abc:abc "$LIBRARY_PATH" "$INGEST_PATH"
+fi
+
+# /calibre-library is hardcoded in several CWA scripts: make it a symlink to
+# the real library. The image's placeholder is an empty directory.
+link_dir() {
+    local link="$1" target="$2"
+    if [ -L "$link" ]; then
+        rm "$link"
+    elif [ -d "$link" ]; then
+        rmdir "$link" || fail "$link is not empty, cannot replace it with a link"
+    fi
+    ln -s "$target" "$link"
+    log "$link -> $target"
+}
+link_dir /calibre-library "$LIBRARY_PATH"
+link_dir /cwa-book-ingest "$INGEST_PATH"
+
+# The ingest service runs `find` on the folder, which does not descend into a
+# symlinked start directory, so give CWA the real path for ingest
+jq --arg ingest "$INGEST_PATH" '.ingest_folder = $ingest' "$DIRS_JSON" > "$DIRS_JSON.tmp"
+cat "$DIRS_JSON.tmp" > "$DIRS_JSON"
+rm "$DIRS_JSON.tmp"
+setenv WATCH_FOLDER "$INGEST_PATH"
+
+# --- Options -> environment ------------------------------------------------
+setenv NETWORK_SHARE_MODE "$NETWORK_SHARE_MODE"
+setenv CWA_WATCH_MODE "$(opt '.watch_mode')"
+setenv DISABLE_LIBRARY_AUTOMOUNT "$(opt_bool '.disable_library_automount')"
+
+HARDCOVER_TOKEN="$(opt '.hardcover_token')"
+[ -n "$HARDCOVER_TOKEN" ] && setenv HARDCOVER_TOKEN "$HARDCOVER_TOKEN"
+
+while IFS=$'\t' read -r name value; do
+    [ -z "$name" ] && continue
+    [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || fail "invalid extra_env name '$name'"
+    setenv "$name" "$value"
+    log "extra env: $name"
+done < <(jq -r '(.extra_env // [])[] | [.name, .value] | @tsv' "$OPTIONS")
+
+log "Library folder : $LIBRARY_PATH"
+log "Ingest folder  : $INGEST_PATH"
+log "Network share  : $NETWORK_SHARE_MODE"
+log "Watch mode     : $(opt '.watch_mode')"
