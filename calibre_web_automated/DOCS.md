@@ -1,6 +1,6 @@
 # Calibre-Web Automated — Documentation
 
-This add-on runs [Calibre-Web Automated](https://github.com/crocodilestick/Calibre-Web-Automated)
+This app runs [Calibre-Web Automated](https://github.com/crocodilestick/Calibre-Web-Automated)
 (CWA) on your Home Assistant machine: a Calibre-Web e-book library with a web
 reader, plus automatic import, conversion and metadata handling. It opens in the
 Home Assistant sidebar (**Books**) via Ingress, and can also be reached directly
@@ -8,15 +8,15 @@ on port 8083 for e-readers.
 
 ## First start
 
-1. Install and start the add-on. The first start takes a minute or two.
-2. Open **Books** in the sidebar (or **Open Web UI** on the add-on page).
+1. Install and start the app. The first start takes a minute or two.
+2. Open **Books** in the sidebar (or **Open web UI** on the app's page).
 3. Log in with the CWA default account **`admin` / `admin123`** and change the
    password right away under **Admin → Edit users**.
 
 On first start an empty library is created in `/share/calibre`. To use
 an existing Calibre library instead, copy it (the folder containing
-`metadata.db`) to that location, e.g. with the Samba share or SSH add-on, before
-starting the add-on, or point `library_path` at it.
+`metadata.db`) to that location, e.g. with the Samba share or SSH app, before
+starting the app, or point `library_path` at it.
 
 ## Adding books
 
@@ -27,7 +27,7 @@ depending on the settings on the **CWA Settings** page.
 
 > **Files in the ingest folder are deleted after they are processed.** Never
 > point the ingest folder at a folder whose content you want to keep. The
-> add-on refuses to start if the ingest folder and the library overlap.
+> app refuses to start if the ingest folder and the library overlap.
 
 You can also upload books in the web interface.
 
@@ -43,18 +43,18 @@ You can also upload books in the web interface.
 | `disable_library_automount` | Skip the startup scan that looks for `metadata.db` in the library folder and configures it automatically. |
 | `extra_env` | Advanced: `name`/`value` pairs for other CWA environment variables, e.g. `TRUSTED_PROXY_COUNT`. |
 
-Restart the add-on after changing options. The time zone is taken from Home
+Restart the app after changing options. The time zone is taken from Home
 Assistant.
 
 ## Where the data lives
 
 | What | Location | In Home Assistant backups |
 |---|---|---|
-| CWA settings, users, `app.db`, `cwa.db`, processed-book archive and logs | The add-on config folder: `/addon_configs/<id>_calibre_web_automated` (`addon_configs` share in Samba) | Yes, with the add-on |
+| CWA settings, users, `app.db`, `cwa.db`, processed-book archive and logs | The app config folder: `app_configs/<id>_calibre_web_automated` (`addon_configs` in older versions of the Samba and SSH apps) | Yes, with the app |
 | Library | `library_path` | When the share/media folder is included in the backup |
 | Ingest folder | `ingest_path` | When the share/media folder is included in the backup |
 
-Calibre plugins can be placed in `.config/calibre/plugins` inside the add-on
+Calibre plugins can be placed in `.config/calibre/plugins` inside the app
 config folder.
 
 ## Direct access, OPDS and Kobo sync
@@ -67,7 +67,7 @@ cannot use Ingress (it needs a Home Assistant login), so you need this port for:
   Configuration**, then follow the CWA wiki)
 - KOReader sync
 
-If you only use the browser, you can disable the port in the add-on's
+If you only use the browser, you can disable the port in the app's
 **Network** section. Don't expose port 8083 to the internet without a reverse
 proxy with HTTPS.
 
@@ -84,8 +84,8 @@ network could send that header themselves and log in as any user.
 
 ## How it works
 
-Home Assistant serves Ingress add-ons under a tokenized subpath. A small nginx
-proxy inside the add-on passes that path to Calibre-Web as `X-Script-Name`,
+Home Assistant serves Ingress apps under a tokenized subpath. A small nginx
+proxy inside the app passes that path to Calibre-Web as `X-Script-Name`,
 which Calibre-Web supports natively. A few CWA-specific pages (statistics,
 duplicates) build URLs in JavaScript; nginx rewrites those to include the
 prefix.
@@ -97,13 +97,13 @@ E-reader (OPDS/Kobo) ───────────────────�
 
 The upstream image declares Docker volumes for `/config`, `/calibre-library` and
 `/cwa-book-ingest`. Under the Supervisor those would become anonymous volumes that
-are lost when the add-on container is recreated, so the add-on's Dockerfile
+are lost when the app container is recreated, so the app's Dockerfile
 copies the upstream image into a new image without them. `/calibre-library` is a
 link to `library_path`, and CWA's ingest folder is set to `ingest_path`.
 
 ## Known limitations
 
-- Building the add-on image on the device takes several minutes and needs
+- Building the app image on the device takes several minutes and needs
   several GB of free disk space (the CWA image includes Calibre).
 - If a CWA update renames frontend routes, a page may not work through Ingress
-  until the add-on is updated; the direct port keeps working.
+  until the app is updated; the direct port keeps working.

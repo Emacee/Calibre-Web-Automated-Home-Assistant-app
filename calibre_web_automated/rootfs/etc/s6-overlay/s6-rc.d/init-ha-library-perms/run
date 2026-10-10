@@ -1,7 +1,7 @@
 #!/usr/bin/with-contenv bash
 # shellcheck shell=bash
 #
-# CWA runs `chown -R abc:abc /calibre-library`, which in this add-on is a
+# CWA runs `chown -R abc:abc /calibre-library`, which in this app is a
 # symlink: chown then changes the link only, leaving the library (including
 # a freshly created metadata.db) owned by root and read-only for CWA.
 # Repeat it on the real folder once cwa-auto-library is done.

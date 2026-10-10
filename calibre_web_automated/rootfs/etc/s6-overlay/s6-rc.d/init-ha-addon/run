@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 #
 # Home Assistant glue, runs before CWA's own cwa-init:
-#  - reads the add-on options from /data/options.json
+#  - reads the app options from /data/options.json
 #  - points /calibre-library and the ingest folder at /share or /media
 #  - exports the options as environment variables for the CWA services
 
@@ -20,7 +20,7 @@ setenv()   { printf '%s' "$2" > "$ENV_DIR/$1"; }
 
 [ -f "$OPTIONS" ] || fail "$OPTIONS not found"
 
-# Only /share and /media are mapped into the add-on and survive updates
+# Only /share and /media are mapped into the app and survive updates
 check_path() {
     local path="$1" name="$2"
     case "$path" in

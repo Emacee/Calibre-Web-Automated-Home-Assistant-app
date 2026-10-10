@@ -21,16 +21,16 @@ panel_admin: false
 
 # Direct access: needed for e-readers (OPDS, Kobo sync, KOReader sync) and
 # "Send to e-reader" links. Set it to empty in the Network section to make
-# the add-on ingress-only.
+# the app ingress-only.
 ports:
   8083/tcp: 8083
 ports_description:
   8083/tcp: Web interface, OPDS and Kobo sync (direct access)
 
-# /config = CWA settings, users and app.db (addon_config, included in backups)
+# /config = CWA settings, users and app.db (app_config, included in backups)
 # /share and /media = library and ingest folder
 map:
-  - type: addon_config
+  - type: app_config
     read_only: false
   - type: share
     read_only: false

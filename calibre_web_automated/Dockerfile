@@ -1,12 +1,12 @@
-# Calibre-Web Automated as a Home Assistant add-on
+# Calibre-Web Automated as a Home Assistant app
 #
 # The upstream image declares VOLUME /config, /calibre-library and
 # /cwa-book-ingest. Under the HA Supervisor those would become anonymous
-# Docker volumes that are thrown away whenever the add-on container is
+# Docker volumes that are thrown away whenever the app container is
 # recreated (restart with changed options, update), taking the library with
 # them. A Dockerfile cannot remove a VOLUME, so stage 2 flattens the image
-# into a fresh one without them; the add-on keeps its data in /config
-# (addon_config) and /share or /media instead.
+# into a fresh one without them; the app keeps its data in /config
+# (app_config) and /share or /media instead.
 ARG CWA_VERSION=v4.0.8
 
 FROM crocodilestick/calibre-web-automated:${CWA_VERSION} AS cwa
@@ -36,12 +36,9 @@ ENV PATH="/lsiopy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/b
     VIRTUAL_ENV="/lsiopy" \
     CALIBRE_CONFIG_DIR="/config/.config/calibre"
 
-# Stop the add-on (visible in HA) when an init step such as the option check
+# Stop the app (visible in HA) when an init step such as the option check
 # fails, instead of running on half-initialised
 ENV S6_BEHAVIOUR_IF_STAGE2_FAILS="2"
-
-LABEL io.hass.type="addon" \
-      io.hass.arch="aarch64|amd64"
 
 WORKDIR /config
 EXPOSE 8083 8099
