@@ -16,6 +16,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx \
     && rm -rf /var/lib/apt/lists/* /etc/nginx/sites-enabled/*
 
+# Calibre ships in /app/calibre, but upstream runs its post-install (command
+# links in /usr/bin and such) at every container start, which takes minutes
+# on a Home Assistant machine. Do it once here; CWA's calibre-binaries-setup
+# then finds calibredb and skips it.
+RUN /app/calibre/calibre_postinstall \
+    && calibredb --version
+
 COPY rootfs/ /
 RUN chmod +x /etc/s6-overlay/s6-rc.d/init-ha-addon/run \
              /etc/s6-overlay/s6-rc.d/svc-ha-ingress/run \

@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.0.13
+
+Still based on Calibre-Web Automated v4.0.8.
+
+- Run Calibre's post-install when the image is built instead of at every
+  start, so the app no longer sets up Calibre again (up to several minutes)
+  every time it starts
+
 ## 4.0.12
 
 Still based on Calibre-Web Automated v4.0.8.
