@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0.5
+
+Still based on Shelfmark v1.4.0.
+
+- Log Hardcover's own reason when it refuses a token, and still use a token
+  that can search but misses the account scopes (with a warning naming the
+  scopes to add)
+
 ## 1.4.0.4
 
 Still based on Shelfmark v1.4.0.

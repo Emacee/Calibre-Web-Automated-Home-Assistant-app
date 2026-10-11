@@ -133,7 +133,7 @@ def candidates(cwa_dir):
     return unique
 
 
-def probe(token):
+def probe(token, query="query { me { id username } }"):
     """Ask Hardcover who this token belongs to, like Shelfmark's Test Connection.
 
     Returns ("ok", username), ("limited", reason) for a valid token missing
@@ -142,7 +142,7 @@ def probe(token):
     """
     request = urllib.request.Request(
         API_URL,
-        data=json.dumps({"query": "query { me { id username } }"}).encode(),
+        data=json.dumps({"query": query}).encode(),
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -153,16 +153,26 @@ def probe(token):
         with urllib.request.urlopen(request, timeout=10) as response:
             body = json.loads(response.read() or b"{}")
     except urllib.error.HTTPError as exc:
+        # Hardcover's answer says why (missing scope, revoked token, ...);
+        # it does not contain the token
+        try:
+            answer = " ".join(exc.read(300).decode("utf-8", "replace").split())
+        except OSError:
+            answer = ""
+        reason = f"HTTP {exc.code}: {answer}" if answer else f"HTTP {exc.code}"
         if exc.code in (401, 403):
-            return "rejected", f"HTTP {exc.code}"
-        return "unknown", f"HTTP {exc.code}"
+            return "rejected", reason
+        return "unknown", reason
     except (OSError, ValueError) as exc:
         return "unknown", str(exc)
     if body.get("errors"):
         # Authenticated, but this query is not allowed: a scope is missing
         message = str(body["errors"][0].get("message", "error"))[:120]
         return "limited", message
-    me = (body.get("data") or {}).get("me")
+    data = body.get("data") or {}
+    if "me" not in data:
+        return ("ok", "") if data else ("rejected", "no data returned")
+    me = data["me"]
     if isinstance(me, list):
         me = me[0] if me else None
     if not me:
@@ -191,6 +201,11 @@ def choose(found):
             fallback = fallback or (f"{source}, missing scopes", token)
         elif result == "rejected":
             log(f"WARNING: Hardcover rejects the {kind(token)} from {source} ({detail})")
+            # Still usable for search if only the account scopes are missing
+            if probe(token, "query { books(limit: 1) { id } }")[0] == "ok":
+                log(f"WARNING: the token from {source} works for search only; it misses scopes "
+                    "for your account and lists. Needed: " + ", ".join(SCOPES))
+                fallback = fallback or (f"{source}, search only", token)
         else:
             log(f"WARNING: could not check the token from {source} with Hardcover ({detail})")
             fallback = fallback or (f"{source}, not verified", token)
