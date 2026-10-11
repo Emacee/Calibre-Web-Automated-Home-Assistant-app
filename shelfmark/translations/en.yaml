@@ -2,8 +2,9 @@ configuration:
   hardcover_token:
     name: Hardcover API token
     description: >-
-      Optional. Leave empty to use the token set in the Calibre-Web Automated
-      app. Needed to browse your Hardcover lists, such as Want to Read.
+      Optional. Leave empty to use the token from Calibre-Web Automated: your
+      CWA profile, the CWA app options or CWA's Basic Configuration. Needed
+      to browse your Hardcover lists, such as Want to Read.
   ingress_auto_login:
     name: Log in automatically in Home Assistant
     description: >-

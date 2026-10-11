@@ -14,7 +14,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* /etc/nginx/sites-enabled/*
 
 COPY rootfs/ /
-RUN chmod +x /usr/local/bin/ha-run
+RUN chmod +x /usr/local/bin/ha-run /usr/local/bin/ha-cwa-token
 
 EXPOSE 8084 8099
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/ha-run"]

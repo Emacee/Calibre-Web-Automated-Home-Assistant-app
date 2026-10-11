@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0.3
+
+Still based on Shelfmark v1.4.0.
+
+- Take the Hardcover token from wherever it is set in Calibre-Web Automated,
+  on every start: the CWA profile of the Ingress user (or the first admin
+  with one), the CWA app options, or CWA's Basic Configuration. CWA's user
+  database is read from a private snapshot, so recent changes count too
+
 ## 1.4.0.2
 
 Still based on Shelfmark v1.4.0.

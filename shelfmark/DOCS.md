@@ -15,9 +15,10 @@ from there, so normally you don't have to configure anything.
 1. Make sure the **Calibre-Web Automated** app is updated to 4.0.12 or later
    and has been started once since the update. That start is when it shares
    its settings.
-2. Optional: set the **Hardcover API token** in the Calibre-Web Automated
-   app (get one at [hardcover.app/account/api](https://hardcover.app/account/api)),
-   then restart that app.
+2. Optional: set your **Hardcover API token** in Calibre-Web Automated, for
+   example in your CWA profile (get one at
+   [hardcover.app/account/api](https://hardcover.app/account/api)). See
+   "Hardcover token" below for all places it is taken from.
 3. Install and start this app, then click **Open web UI**. Turn on **Show in
    sidebar** to get a **Shelfmark** entry in the sidebar.
 4. You are logged in automatically as the same user as in the Calibre-Web
@@ -32,13 +33,29 @@ from there, so normally you don't have to configure anything.
 | Ingest folder | Where every download is saved, so CWA imports it | — |
 | Calibre library | Marks books you already own in search results | — |
 | The app itself | **Go To Library** button, opens CWA in a new tab | — |
-| Hardcover API token | Hardcover search and your Hardcover lists | `hardcover_token` |
+| Hardcover API token (see below) | Hardcover search and your Hardcover lists | `hardcover_token` |
 | The Ingress user and its admin role | Automatic login from Home Assistant | `ingress_auto_login: false` |
 | User accounts (`app.db`) | Password login when not logged in automatically | `use_cwa_login: false` |
 
 Settings set this way are locked in Shelfmark's own settings screen. Restart
 this app after changing a CWA password, or after changing the Hardcover
 token or folders in the Calibre-Web Automated app (restart that app first).
+
+## Hardcover token
+
+On every start this app looks for a Hardcover token in this order and uses
+the first one it finds:
+
+1. `hardcover_token` in this app's options
+2. The token in the **CWA profile** of the user you are logged in as through
+   Ingress (or else of the first CWA admin that has one). Hardcover lists
+   such as Want to Read are personal, so this is usually the right account.
+3. `hardcover_token` in the Calibre-Web Automated app's options
+4. The token in CWA under **Admin → Basic Configuration**
+
+The log shows where the token came from (never the token itself). After
+changing it in CWA, restart this app. Shelfmark's own Hardcover settings then
+show it as set by the environment (**ENV**).
 
 ## How downloads reach your library
 

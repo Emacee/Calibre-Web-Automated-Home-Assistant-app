@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Find the Hardcover API token to give Shelfmark, on every start.
+
+Usage: ha-cwa-token <CWA app config folder, or empty>
+
+Prints two lines: where the token came from, and the token itself (both
+empty when none is found). The token is never written anywhere else.
+
+Order, first non-empty wins:
+  1. hardcover_token option of this app
+  2. personal token (CWA profile) of the CWA Ingress user, or else of the
+     first admin that has one: Hardcover lists are personal
+  3. hardcover_token option of the CWA app
+  4. CWA Admin -> Basic Configuration
+
+CWA's app.db sits on a read-only mount and uses WAL, so it is read from a
+private snapshot (app.db plus its WAL) that is removed afterwards.
+"""
+
+import json
+import os
+import shutil
+import sqlite3
+import sys
+import tempfile
+
+OPTIONS = "/data/options.json"
+ROLE_ADMIN = 1
+
+
+def clean(token):
+    token = (token or "").strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    return token
+
+
+def read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def read_text(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def cwa_db_tokens(cwa_dir, ingress_user):
+    """Return (profile token, its user, Basic Configuration token) from app.db."""
+    db = os.path.join(cwa_dir, "app.db")
+    if not os.path.isfile(db):
+        return "", "", ""
+    snapshot = tempfile.mkdtemp(prefix="ha-cwa-")
+    try:
+        copy = os.path.join(snapshot, "app.db")
+        shutil.copyfile(db, copy)
+        if os.path.isfile(db + "-wal"):
+            shutil.copyfile(db + "-wal", copy + "-wal")
+        conn = sqlite3.connect(copy)
+        try:
+            row = None
+            if ingress_user:
+                row = conn.execute(
+                    "SELECT hardcover_token, name FROM user WHERE lower(name) = lower(?)",
+                    (ingress_user,),
+                ).fetchone()
+            if not row or not clean(row[0]):
+                row = conn.execute(
+                    "SELECT hardcover_token, name FROM user"
+                    " WHERE (role & ?) = ? AND hardcover_token IS NOT NULL"
+                    " AND trim(hardcover_token) != '' ORDER BY id LIMIT 1",
+                    (ROLE_ADMIN, ROLE_ADMIN),
+                ).fetchone()
+            profile, user = (clean(row[0]), row[1]) if row else ("", "")
+            try:
+                setting = conn.execute(
+                    "SELECT config_hardcover_token FROM settings LIMIT 1"
+                ).fetchone()
+            except sqlite3.OperationalError:
+                setting = None
+            return profile, user, clean(setting[0]) if setting else ""
+        finally:
+            conn.close()
+    finally:
+        shutil.rmtree(snapshot, ignore_errors=True)
+
+
+def find(cwa_dir):
+    own = clean(read_json(OPTIONS).get("hardcover_token"))
+    if own:
+        return "this app's options", own
+    if not cwa_dir:
+        return "", ""
+
+    shared = os.path.join(cwa_dir, ".ha-share")
+    ingress_user = read_json(os.path.join(shared, "cwa.json")).get("ingress_user") or ""
+    try:
+        profile, user, setting = cwa_db_tokens(cwa_dir, ingress_user)
+    except (OSError, sqlite3.Error) as exc:
+        print(f"[ha-app] WARNING: could not read the CWA user database: {exc}", file=sys.stderr)
+        profile = user = setting = ""
+
+    if profile:
+        return f"CWA profile of {user}", profile
+    option = clean(read_text(os.path.join(shared, "hardcover_token")))
+    if option:
+        return "Calibre-Web Automated app options", option
+    if setting:
+        return "CWA Basic Configuration", setting
+    return "", ""
+
+
+def main():
+    source, token = find(sys.argv[1] if len(sys.argv) > 1 else "")
+    if "\n" in token:
+        source, token = "", ""
+    sys.stdout.write(f"{source}\n{token}\n")
+
+
+if __name__ == "__main__":
+    main()

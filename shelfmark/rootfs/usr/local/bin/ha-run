@@ -97,14 +97,13 @@ if [ -n "$LIBRARY_PATH" ] && [ -f "$LIBRARY_PATH/metadata.db" ]; then
 fi
 
 # --- Hardcover --------------------------------------------------------------
-HARDCOVER_SOURCE="not set"
-HARDCOVER_TOKEN="$(opt '.hardcover_token')"
-if [ -n "$HARDCOVER_TOKEN" ]; then
-    HARDCOVER_SOURCE="this app's options"
-elif [ -n "$CWA_SHARE" ] && [ -s "$CWA_SHARE/hardcover_token" ]; then
-    HARDCOVER_TOKEN="$(cat "$CWA_SHARE/hardcover_token")"
-    HARDCOVER_SOURCE="Calibre-Web Automated app"
-fi
+# Looked up on every start: this app's option, the CWA profile token of the
+# Ingress user (or first admin), the CWA app option, CWA Basic Configuration
+HARDCOVER_SOURCE=""
+HARDCOVER_TOKEN=""
+{ read -r HARDCOVER_SOURCE; read -r HARDCOVER_TOKEN; } \
+    < <(ha-cwa-token "$CWA_DIR" || printf '\n\n')
+[ -n "$HARDCOVER_TOKEN" ] || HARDCOVER_SOURCE="not set"
 if [ -n "$HARDCOVER_TOKEN" ]; then
     export HARDCOVER_ENABLED=true
     export HARDCOVER_API_KEY="$HARDCOVER_TOKEN"
