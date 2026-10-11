@@ -1,5 +1,5 @@
 name: Shelfmark
-version: "1.4.0"
+version: "1.4.0.1"
 slug: shelfmark
 description: >-
   Search and download books, also from your Hardcover lists, straight into
@@ -39,14 +39,13 @@ map:
   - type: all_app_configs
     read_only: true
 
-# ingest_path and hardcover_token are optional overrides; by default both
-# are taken from the Calibre-Web Automated app
+# Downloads always go to the ingest folder of the Calibre-Web Automated app.
+# hardcover_token is an optional override of the token set in that app.
 options:
   use_cwa_login: true
   extra_env: []
 
 schema:
-  ingest_path: str?
   hardcover_token: password?
   use_cwa_login: bool
   extra_env:

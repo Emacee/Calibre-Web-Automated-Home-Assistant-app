@@ -28,14 +28,39 @@ from there, so normally you don't have to configure anything.
 
 | What | Used for | Override in this app |
 |---|---|---|
-| Ingest folder | Where downloads are saved, so CWA imports them | `ingest_path` |
-| Calibre library | Shows which books you already own | — |
+| Ingest folder | Where every download is saved, so CWA imports it | — |
+| Calibre library | Marks books you already own in search results | — |
+| The app itself | **Go To Library** button, opens CWA in a new tab | — |
 | Hardcover API token | Hardcover search and your Hardcover lists | `hardcover_token` |
 | User accounts (`app.db`) | Login to Shelfmark | `use_cwa_login: false` |
 
 Settings set this way are locked in Shelfmark's own settings screen. Restart
 this app after changing a CWA password, or after changing the Hardcover
 token or folders in the Calibre-Web Automated app (restart that app first).
+
+## How downloads reach your library
+
+Every download, for every Shelfmark user, is saved in the CWA ingest folder,
+where CWA imports it into your library, converts it if needed and then
+removes it from the folder. To keep that working, this app fixes these
+Shelfmark settings:
+
+| Setting | Value | Why |
+|---|---|---|
+| Output mode | Folder | Email or Grimmory upload would bypass CWA |
+| Destination (books and audiobooks) | The CWA ingest folder | Also per-user destinations are overridden |
+| File organization | Rename (no folders) | Shelfmark advises against folders in an ingest folder |
+| Hardlink torrents | Off | CWA deletes files after import, and archives must be extracted |
+| Book formats | EPUB, MOBI, AZW3, FB2, CBZ, CBR | Shelfmark's defaults without DJVU, which CWA cannot import |
+| Audiobook formats | M4B, M4A, MP4 | The audiobook formats CWA imports |
+
+Shelfmark writes each file under a temporary `.tmp` name and renames it when
+it is complete; CWA skips the temporary names, so it never imports a
+half-written file. Downloaded files belong to the same user as CWA's files
+(uid 911), so CWA can remove them after the import.
+
+Want different formats? Set `SUPPORTED_FORMATS` (comma-separated) in
+`extra_env`, but only add formats CWA can import (for example `pdf`).
 
 ## Using your Hardcover Want to Read list
 
@@ -50,10 +75,9 @@ Shelfmark's settings under Hardcover → **Auto-Remove from List on Download**.
 
 | Option | Description |
 |---|---|
-| `ingest_path` | Optional. Download folder under `/share` or `/media`. Empty (default): the ingest folder of the Calibre-Web Automated app, or `/share/cwa-book-ingest` if that app isn't found. |
 | `hardcover_token` | Optional. Hardcover API token. Empty (default): the token from the Calibre-Web Automated app. |
 | `use_cwa_login` | Log in with the Calibre-Web Automated users (default on). Turn off to set up login in Shelfmark's settings. |
-| `extra_env` | Advanced: `name`/`value` pairs for other [Shelfmark environment variables](https://github.com/calibrain/shelfmark/blob/main/docs/environment-variables.md). These override the values above. |
+| `extra_env` | Advanced: `name`/`value` pairs for other [Shelfmark environment variables](https://github.com/calibrain/shelfmark/blob/main/docs/environment-variables.md). These override the values above, including the fixed settings. |
 
 The time zone is taken from Home Assistant.
 

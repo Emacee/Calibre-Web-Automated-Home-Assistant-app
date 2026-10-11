@@ -48,20 +48,46 @@ cwa_setting() {
 }
 
 # --- Ingest folder ----------------------------------------------------------
-INGEST_PATH="$(opt '.ingest_path')"
-[ -n "$INGEST_PATH" ] || INGEST_PATH="$(cwa_setting '.ingest_path')"
-[ -n "$INGEST_PATH" ] || INGEST_PATH=/share/cwa-book-ingest
+# Downloads always go to the ingest folder of the CWA app, which imports them
+INGEST_PATH="$(cwa_setting '.ingest_path')"
+if [ -z "$INGEST_PATH" ]; then
+    INGEST_PATH=/share/cwa-book-ingest
+    log "WARNING: CWA ingest folder unknown, using the default $INGEST_PATH"
+fi
 INGEST_PATH="${INGEST_PATH%/}"
 
 # Only /share and /media are mapped into the app and shared with CWA
 case "$INGEST_PATH" in
     /share/?*|/media/?*) ;;
-    *) fail "ingest_path must be a folder under /share or /media (got '$INGEST_PATH')" ;;
+    *) fail "CWA ingest folder must be under /share or /media (got '$INGEST_PATH')" ;;
 esac
 case "$INGEST_PATH" in
-    *..*) fail "ingest_path must not contain '..' (got '$INGEST_PATH')" ;;
+    *..*) fail "CWA ingest folder must not contain '..' (got '$INGEST_PATH')" ;;
 esac
 export INGEST_DIR="$INGEST_PATH"
+
+# --- Delivery into the CWA ingest folder --------------------------------------
+# Environment values win over the settings screen (also per-user ones), so
+# these keep every download landing where CWA imports it:
+#  - books and audiobooks both go to the ingest folder, as files
+#  - renamed files, no folders (Shelfmark advises against folders in an
+#    ingest folder)
+#  - no hardlinks: CWA deletes files after import, archives must be extracted
+#  - only formats CWA imports (Shelfmark's defaults without djvu, and the
+#    audiobook formats CWA supports); others would sit in the folder forever
+export BOOKS_OUTPUT_MODE=folder
+export DESTINATION_AUDIOBOOK="$INGEST_PATH"
+export FILE_ORGANIZATION=rename
+export FILE_ORGANIZATION_AUDIOBOOK=rename
+export HARDLINK_TORRENTS=false
+export HARDLINK_TORRENTS_AUDIOBOOK=false
+export SUPPORTED_FORMATS="epub,mobi,azw3,fb2,cbz,cbr"
+export SUPPORTED_AUDIOBOOK_FORMATS="m4b,m4a,mp4"
+
+# --- Library button: opens the CWA app in Home Assistant (new tab) --------
+if [ -n "$CWA_DIR" ]; then
+    export CALIBRE_WEB_URL="/hassio/ingress/${CWA_DIR##*/}"
+fi
 
 # --- Library check: mark books you already own ------------------------------
 LIBRARY_PATH="$(cwa_setting '.library_path')"
@@ -114,6 +140,7 @@ done < <(jq -r '(.extra_env // [])[] | [.name, .value] | @tsv' "$OPTIONS")
 
 log "Ingest folder  : $INGEST_DIR"
 log "Library check  : ${CALIBRE_LIBRARY_DB_PATH:-off}"
+log "Library button : ${CALIBRE_WEB_URL:-off}"
 log "Hardcover token: $HARDCOVER_SOURCE"
 log "Login          : $LOGIN"
 

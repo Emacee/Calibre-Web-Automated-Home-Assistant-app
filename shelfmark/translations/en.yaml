@@ -1,10 +1,4 @@
 configuration:
-  ingest_path:
-    name: Download folder
-    description: >-
-      Optional. Folder under /share or /media where downloaded books are
-      saved. Leave empty to use the ingest folder of the Calibre-Web Automated
-      app, so downloads are imported into your library automatically.
   hardcover_token:
     name: Hardcover API token
     description: >-

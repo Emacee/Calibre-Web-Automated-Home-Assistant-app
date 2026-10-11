@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0.1
+
+Still based on Shelfmark v1.4.0.
+
+- Downloads always go to the ingest folder of the Calibre-Web Automated app;
+  the `ingest_path` option is removed
+- Lock the Shelfmark settings that would bypass or break the CWA import:
+  output mode folder, books and audiobooks to the ingest folder (also for
+  per-user destinations), rename without folders, no hardlinks, and only
+  formats CWA can import
+- **Go To Library** button opens the Calibre-Web Automated app
+
 ## 1.4.0
 
 - Initial release, based on Shelfmark v1.4.0
