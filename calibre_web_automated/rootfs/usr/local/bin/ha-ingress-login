@@ -22,6 +22,7 @@ OPTIONS = "/data/options.json"
 APP_DB = "/config/app.db"
 SECRET_FILE = "/config/.ha-ingress-login"
 NGINX_INCLUDE = "/etc/nginx/ha-ingress-login.conf"
+SHARE_FILE = "/config/.ha-share/cwa.json"
 HEADER_RE = re.compile(r"X-HA-Ingress-[0-9a-f]{32}")
 ROLE_ADMIN = 1
 
@@ -55,17 +56,39 @@ def write_include(content):
     os.replace(tmp, NGINX_INCLUDE)
 
 
+def share_user(user=None, is_admin=False):
+    """Tell companion apps (Shelfmark) which account Ingress logs in as.
+
+    Only the user name and role are shared, never the header name.
+    """
+    try:
+        with open(SHARE_FILE, encoding="utf-8") as f:
+            shared = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return
+    shared.pop("ingress_user", None)
+    shared.pop("ingress_user_admin", None)
+    if user is not None:
+        shared["ingress_user"] = user
+        shared["ingress_user_admin"] = is_admin
+    tmp = SHARE_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(shared, f, indent=2)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, SHARE_FILE)
+
+
 def find_user(conn, wanted):
     if wanted:
         row = conn.execute(
-            "SELECT name FROM user WHERE lower(name) = lower(?)", (wanted,)
+            "SELECT name, role FROM user WHERE lower(name) = lower(?)", (wanted,)
         ).fetchone()
     else:
         row = conn.execute(
-            "SELECT name FROM user WHERE (role & ?) = ? ORDER BY id LIMIT 1",
+            "SELECT name, role FROM user WHERE (role & ?) = ? ORDER BY id LIMIT 1",
             (ROLE_ADMIN, ROLE_ADMIN),
         ).fetchone()
-    return row[0] if row else None
+    return (row[0], bool((row[1] or 0) & ROLE_ADMIN)) if row else (None, False)
 
 
 def main():
@@ -75,8 +98,10 @@ def main():
     wanted = (options.get("ingress_user") or "").strip()
 
     name = header_name()
-    # Until the settings are applied, nginx sends no login header
+    # Until the settings are applied, nginx sends no login header and
+    # companion apps get no account
     write_include("")
+    share_user()
 
     if not os.path.isfile(APP_DB):
         return EXIT_WAITING
@@ -107,7 +132,7 @@ def main():
                 return EXIT_CHANGED
             return EXIT_OK
 
-        user = find_user(conn, wanted)
+        user, is_admin = find_user(conn, wanted)
         if user is None:
             log(
                 f"WARNING: ingress login: user '{wanted}' not found"
@@ -132,6 +157,7 @@ def main():
         conn.close()
 
     write_include(f'proxy_set_header {name} "{user}";\n')
+    share_user(user, is_admin)
     log(f"Ingress login  : {user}")
     return EXIT_CHANGED if changed else EXIT_OK
 

@@ -66,8 +66,10 @@ The **Shelfmark** app from this repository searches and downloads books, also
 from your Hardcover lists such as Want to Read, into the ingest folder of
 this app. On every start this app writes its library and ingest folder, and
 the `hardcover_token` if set, to `.ha-share` in its config folder (the token
-file is only readable by the app itself). Shelfmark reads them from there, so it needs
-no setup of its own. Restart Shelfmark after changing these options here.
+file is only readable by the app itself). It also shares the user of the
+automatic login below (name and admin role, not the secret header), so
+Shelfmark logs you in as the same user. Shelfmark reads them from there, so it
+needs no setup of its own. Restart Shelfmark after changing these options here.
 
 ## Direct access, OPDS and Kobo sync
 

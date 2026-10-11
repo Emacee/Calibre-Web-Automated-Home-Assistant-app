@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0.2
+
+Still based on Shelfmark v1.4.0.
+
+- Log in automatically when opened from Home Assistant, as the same user as
+  the Calibre-Web Automated app (with its admin role), via Shelfmark's proxy
+  login with a random header name per installation. New option
+  `ingress_auto_login` (default on); needs Calibre-Web Automated 4.0.12
+
 ## 1.4.0.1
 
 Still based on Shelfmark v1.4.0.

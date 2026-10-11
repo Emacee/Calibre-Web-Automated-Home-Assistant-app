@@ -12,7 +12,7 @@ from there, so normally you don't have to configure anything.
 
 ## First start
 
-1. Make sure the **Calibre-Web Automated** app is updated to 4.0.10 or later
+1. Make sure the **Calibre-Web Automated** app is updated to 4.0.12 or later
    and has been started once since the update. That start is when it shares
    its settings.
 2. Optional: set the **Hardcover API token** in the Calibre-Web Automated
@@ -20,7 +20,8 @@ from there, so normally you don't have to configure anything.
    then restart that app.
 3. Install and start this app, then click **Open web UI**. Turn on **Show in
    sidebar** to get a **Shelfmark** entry in the sidebar.
-4. Log in with your **Calibre-Web Automated** username and password.
+4. You are logged in automatically as the same user as in the Calibre-Web
+   Automated app (see below).
 5. On first use Shelfmark shows a short setup wizard to choose where books
    are searched for.
 
@@ -32,7 +33,8 @@ from there, so normally you don't have to configure anything.
 | Calibre library | Marks books you already own in search results | — |
 | The app itself | **Go To Library** button, opens CWA in a new tab | — |
 | Hardcover API token | Hardcover search and your Hardcover lists | `hardcover_token` |
-| User accounts (`app.db`) | Login to Shelfmark | `use_cwa_login: false` |
+| The Ingress user and its admin role | Automatic login from Home Assistant | `ingress_auto_login: false` |
+| User accounts (`app.db`) | Password login when not logged in automatically | `use_cwa_login: false` |
 
 Settings set this way are locked in Shelfmark's own settings screen. Restart
 this app after changing a CWA password, or after changing the Hardcover
@@ -62,6 +64,28 @@ half-written file. Downloaded files belong to the same user as CWA's files
 Want different formats? Set `SUPPORTED_FORMATS` (comma-separated) in
 `extra_env`, but only add formats CWA can import (for example `pdf`).
 
+## Automatic login in Home Assistant
+
+Opened from Home Assistant, Shelfmark logs you in automatically as the same
+user as the Calibre-Web Automated app: its first admin, or the user set in
+that app's `ingress_user`. A CWA admin is also a Shelfmark admin. This needs
+the automatic login of the CWA app to be on (its default).
+
+It uses Shelfmark's proxy login with a header name that is random for each
+installation, stored in `.ha-ingress-login` in this app's config folder and
+never written to the log. Only the Ingress proxy, which only Home Assistant
+can reach, sends it; a header sent by the browser is overwritten.
+
+Things to know:
+
+- Every Home Assistant user who can open the panel gets this account.
+- The direct port 8084 cannot be used while this is on (Shelfmark then
+  expects the login header and shows no login page). To use the port, turn
+  `ingress_auto_login` off; you then log in with your CWA username and
+  password (`use_cwa_login`).
+- After changing the CWA user (or on the very first start of CWA), restart
+  this app so it picks up the change.
+
 ## Using your Hardcover Want to Read list
 
 With a Hardcover token, Shelfmark uses Hardcover for search results and lets
@@ -76,7 +100,8 @@ Shelfmark's settings under Hardcover → **Auto-Remove from List on Download**.
 | Option | Description |
 |---|---|
 | `hardcover_token` | Optional. Hardcover API token. Empty (default): the token from the Calibre-Web Automated app. |
-| `use_cwa_login` | Log in with the Calibre-Web Automated users (default on). Turn off to set up login in Shelfmark's settings. |
+| `ingress_auto_login` | Log in automatically from Home Assistant as the Calibre-Web Automated Ingress user (default on). See above. |
+| `use_cwa_login` | When not logged in automatically: log in with the Calibre-Web Automated users and their passwords (default on). Turn off to set up login in Shelfmark's settings. |
 | `extra_env` | Advanced: `name`/`value` pairs for other [Shelfmark environment variables](https://github.com/calibrain/shelfmark/blob/main/docs/environment-variables.md). These override the values above, including the fixed settings. |
 
 The time zone is taken from Home Assistant.
@@ -95,9 +120,9 @@ The time zone is taken from Home Assistant.
 - The Hardcover token is never stored in this repository or written to the
   log. The Calibre-Web Automated app shares it in a file that only that app
   can read; this app reads it as root at startup.
-- Port **8084** for direct access is off by default. You can turn it on in the
-  app's **Network** section, but keep the login enabled then and don't expose
-  it to the internet.
+- Port **8084** for direct access is off by default. To use it, turn on the
+  port in the app's **Network** section and turn `ingress_auto_login` off,
+  keep a password login enabled, and don't expose it to the internet.
 
 ## Legal note
 

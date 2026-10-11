@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.12
+
+Still based on Calibre-Web Automated v4.0.8.
+
+- Share the user of the automatic Ingress login (name and admin role, not
+  the header) with the Shelfmark app, so it logs in as the same user
+
 ## 4.0.11
 
 Still based on Calibre-Web Automated v4.0.8.

@@ -4,11 +4,18 @@ configuration:
     description: >-
       Optional. Leave empty to use the token set in the Calibre-Web Automated
       app. Needed to browse your Hardcover lists, such as Want to Read.
+  ingress_auto_login:
+    name: Log in automatically in Home Assistant
+    description: >-
+      Opening the app from Home Assistant logs you in as the same user as the
+      Calibre-Web Automated app (its automatic login must be on). The direct
+      port 8084 then cannot be used; turn this off to use it.
   use_cwa_login:
     name: Log in with Calibre-Web Automated users
     description: >-
-      Log in to Shelfmark with your Calibre-Web Automated username and
-      password. Turn off to set up login in Shelfmark's own settings.
+      When not logged in automatically: log in with your Calibre-Web
+      Automated username and password. Turn off to set up login in
+      Shelfmark's own settings.
   extra_env:
     name: Extra environment variables
     description: Advanced, additional Shelfmark environment variables.

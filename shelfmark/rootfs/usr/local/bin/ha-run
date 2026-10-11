@@ -112,15 +112,53 @@ if [ -n "$HARDCOVER_TOKEN" ]; then
 fi
 unset HARDCOVER_TOKEN
 
-# --- Login with the Calibre-Web Automated users -----------------------------
-LOGIN="Shelfmark settings"
-if [ "$(opt_bool '.use_cwa_login')" = "true" ]; then
-    if [ -n "$CWA_DIR" ] && [ -f "$CWA_DIR/app.db" ]; then
-        export AUTH_METHOD=cwa
-        export CWA_DB_PATH="$CWA_DIR/app.db"
-        LOGIN="Calibre-Web Automated users"
+# --- Automatic login through Ingress, as the same user as CWA -----------------
+# Shelfmark's proxy login, with a header name that is random for this
+# installation (stored in /config, never logged): only nginx on the ingress
+# port, which only the Supervisor can reach, sends it. The user is the one
+# the CWA app logs in as through Ingress; its admin role carries over.
+INGRESS_INCLUDE=/etc/nginx/ha-ingress-login.conf
+INGRESS_SECRET=/config/.ha-ingress-login
+: > "$INGRESS_INCLUDE"
+LOGIN=""
+INGRESS_USER="$(cwa_setting '.ingress_user')"
+if [ "$(opt_bool '.ingress_auto_login')" = "true" ]; then
+    if [ -z "$INGRESS_USER" ]; then
+        log "WARNING: CWA shares no Ingress user (its automatic login is off, or CWA has not started yet); restart this app after CWA has started"
+    elif [[ "$INGRESS_USER" =~ [\"\\\$\;[:cntrl:]] ]]; then
+        log "WARNING: CWA Ingress user name contains characters nginx cannot pass on"
     else
-        log "WARNING: CWA user database not found, login is set in Shelfmark"
+        header="$(cat "$INGRESS_SECRET" 2>/dev/null || true)"
+        if ! [[ "$header" =~ ^X-HA-Ingress-[0-9a-f]{32}$ ]]; then
+            header="X-HA-Ingress-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+            (umask 077 && printf '%s' "$header" > "$INGRESS_SECRET")
+        fi
+        chmod 600 "$INGRESS_SECRET"
+        role="user"
+        [ "$(cwa_setting '.ingress_user_admin')" = "true" ] && role="admin"
+        export AUTH_METHOD=proxy
+        export PROXY_AUTH_USER_HEADER="$header"
+        export PROXY_AUTH_ADMIN_GROUP_HEADER="$header-Role"
+        export PROXY_AUTH_ADMIN_GROUP_NAME=admin
+        export PROXY_AUTH_LOGOUT_URL=""
+        printf 'proxy_set_header %s "%s";\nproxy_set_header %s-Role "%s";\n' \
+            "$header" "$INGRESS_USER" "$header" "$role" > "$INGRESS_INCLUDE"
+        LOGIN="automatic as $INGRESS_USER ($role) through Ingress"
+        unset header
+    fi
+fi
+
+# --- Otherwise: log in with the Calibre-Web Automated users ------------------
+if [ -z "$LOGIN" ]; then
+    LOGIN="Shelfmark settings"
+    if [ "$(opt_bool '.use_cwa_login')" = "true" ]; then
+        if [ -n "$CWA_DIR" ] && [ -f "$CWA_DIR/app.db" ]; then
+            export AUTH_METHOD=cwa
+            export CWA_DB_PATH="$CWA_DIR/app.db"
+            LOGIN="Calibre-Web Automated users (password)"
+        else
+            log "WARNING: CWA user database not found, login is set in Shelfmark"
+        fi
     fi
 fi
 
