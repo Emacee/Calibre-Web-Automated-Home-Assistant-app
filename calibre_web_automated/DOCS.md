@@ -2,14 +2,15 @@
 
 This app runs [Calibre-Web Automated](https://github.com/crocodilestick/Calibre-Web-Automated)
 (CWA) on your Home Assistant machine: a Calibre-Web e-book library with a web
-reader, plus automatic import, conversion and metadata handling. It opens in the
-Home Assistant sidebar (**Books**) via Ingress, and can also be reached directly
+reader, plus automatic import, conversion and metadata handling. It opens inside
+Home Assistant via Ingress (optionally as **Books** in the sidebar), and can also be reached directly
 on port 8083 for e-readers.
 
 ## First start
 
 1. Install and start the app. The first start takes a minute or two.
-2. Open **Books** in the sidebar (or **Open web UI** on the app's page).
+2. Click **Open web UI** on the app's page. Turn on **Show in sidebar** to get
+   a **Books** entry in the sidebar.
 3. Log in with the CWA default account **`admin` / `admin123`** and change the
    password right away under **Admin → Edit users**.
 

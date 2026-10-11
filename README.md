@@ -17,8 +17,8 @@ Or manually:
    `https://github.com/Emacee/Calibre-Web-Automated-Home-Assistant-app`.
 3. Install **Calibre-Web Automated** and start it. The image is built on your
    device, which takes several minutes the first time.
-4. Open **Books** in the sidebar and log in with `admin` / `admin123`, then
-   change that password right away.
+4. Click **Open web UI** (turn on **Show in sidebar** for a **Books** entry)
+   and log in with `admin` / `admin123`, then change that password right away.
 
 Supported architectures: `amd64` and `aarch64`.
 
