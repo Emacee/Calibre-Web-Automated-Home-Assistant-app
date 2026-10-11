@@ -6,7 +6,9 @@ Usage: ha-cwa-token <CWA app config folder, or empty>
 Prints two lines: where the token came from, and the token itself (both
 empty when none is found). The token is never written anywhere else.
 
-Order, first non-empty wins:
+Tokens are looked for in this order, each one is checked with Hardcover
+(the same "who am I" query as Shelfmark's Test Connection) and the first
+one Hardcover accepts is used:
   1. hardcover_token option of this app
   2. personal token (CWA profile) of the CWA Ingress user, or else of the
      first admin that has one: Hardcover lists are personal
@@ -23,9 +25,20 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 
 OPTIONS = "/data/options.json"
 ROLE_ADMIN = 1
+API_URL = "https://api.hardcover.app/v1/graphql"
+# Scopes Shelfmark needs, from its readme (the write ones for reading status
+# and auto-removing downloaded books from a list)
+SCOPES = ("read:catalog", "read:library", "read:lists", "read:me:content",
+          "read:users", "write:library", "write:lists")
+
+
+def log(msg):
+    print(f"[ha-app] {msg}", file=sys.stderr, flush=True)
 
 
 def clean(token):
@@ -91,35 +104,107 @@ def cwa_db_tokens(cwa_dir, ingress_user):
         shutil.rmtree(snapshot, ignore_errors=True)
 
 
-def find(cwa_dir):
+def candidates(cwa_dir):
+    """All tokens found, in order of preference, as (source, token)."""
+    found = []
     own = clean(read_json(OPTIONS).get("hardcover_token"))
     if own:
-        return "this app's options", own
-    if not cwa_dir:
-        return "", ""
+        found.append(("this app's options", own))
+    if cwa_dir:
+        shared = os.path.join(cwa_dir, ".ha-share")
+        ingress_user = read_json(os.path.join(shared, "cwa.json")).get("ingress_user") or ""
+        try:
+            profile, user, setting = cwa_db_tokens(cwa_dir, ingress_user)
+        except (OSError, sqlite3.Error) as exc:
+            log(f"WARNING: could not read the CWA user database: {exc}")
+            profile = user = setting = ""
+        if profile:
+            found.append((f"CWA profile of {user}", profile))
+        option = clean(read_text(os.path.join(shared, "hardcover_token")))
+        if option:
+            found.append(("Calibre-Web Automated app options", option))
+        if setting:
+            found.append(("CWA Basic Configuration", setting))
+    unique, seen = [], set()
+    for source, token in found:
+        if token not in seen and "\n" not in token:
+            seen.add(token)
+            unique.append((source, token))
+    return unique
 
-    shared = os.path.join(cwa_dir, ".ha-share")
-    ingress_user = read_json(os.path.join(shared, "cwa.json")).get("ingress_user") or ""
+
+def probe(token):
+    """Ask Hardcover who this token belongs to, like Shelfmark's Test Connection.
+
+    Returns ("ok", username), ("limited", reason) for a valid token missing
+    a scope, ("rejected", reason) or ("unknown", reason) when Hardcover could
+    not be reached.
+    """
+    request = urllib.request.Request(
+        API_URL,
+        data=json.dumps({"query": "query { me { id username } }"}).encode(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "User-Agent": "Shelfmark Home Assistant app",
+        },
+    )
     try:
-        profile, user, setting = cwa_db_tokens(cwa_dir, ingress_user)
-    except (OSError, sqlite3.Error) as exc:
-        print(f"[ha-app] WARNING: could not read the CWA user database: {exc}", file=sys.stderr)
-        profile = user = setting = ""
+        with urllib.request.urlopen(request, timeout=10) as response:
+            body = json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            return "rejected", f"HTTP {exc.code}"
+        return "unknown", f"HTTP {exc.code}"
+    except (OSError, ValueError) as exc:
+        return "unknown", str(exc)
+    if body.get("errors"):
+        # Authenticated, but this query is not allowed: a scope is missing
+        message = str(body["errors"][0].get("message", "error"))[:120]
+        return "limited", message
+    me = (body.get("data") or {}).get("me")
+    if isinstance(me, list):
+        me = me[0] if me else None
+    if not me:
+        return "rejected", "no account returned"
+    return "ok", str(me.get("username") or "?")
 
-    if profile:
-        return f"CWA profile of {user}", profile
-    option = clean(read_text(os.path.join(shared, "hardcover_token")))
-    if option:
-        return "Calibre-Web Automated app options", option
-    if setting:
-        return "CWA Basic Configuration", setting
+
+def kind(token):
+    if token.startswith("hc_pat_"):
+        return "hc_pat_ token"
+    if token.startswith("eyJ"):
+        return "old JWT token (Hardcover replaced these in August 2026)"
+    return "token in an unknown format"
+
+
+def choose(found):
+    """Pick the first token Hardcover accepts; explain if none does."""
+    fallback = None
+    for source, token in found:
+        result, detail = probe(token)
+        if result == "ok":
+            return f"{source}, connected as {detail}", token
+        if result == "limited":
+            log(f"WARNING: the token from {source} is missing Hardcover scopes ({detail}); "
+                "needed: " + ", ".join(SCOPES))
+            fallback = fallback or (f"{source}, missing scopes", token)
+        elif result == "rejected":
+            log(f"WARNING: Hardcover rejects the {kind(token)} from {source} ({detail})")
+        else:
+            log(f"WARNING: could not check the token from {source} with Hardcover ({detail})")
+            fallback = fallback or (f"{source}, not verified", token)
+    if fallback:
+        return fallback
+    if found:
+        log("WARNING: no working Hardcover token. Create a new one at "
+            "hardcover.app/account/api with the scopes " + ", ".join(SCOPES) +
+            ", put it in your CWA profile and restart this app")
     return "", ""
 
 
 def main():
-    source, token = find(sys.argv[1] if len(sys.argv) > 1 else "")
-    if "\n" in token:
-        source, token = "", ""
+    source, token = choose(candidates(sys.argv[1] if len(sys.argv) > 1 else ""))
     sys.stdout.write(f"{source}\n{token}\n")
 
 

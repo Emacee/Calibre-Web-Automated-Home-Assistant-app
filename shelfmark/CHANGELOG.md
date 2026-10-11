@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0.4
+
+Still based on Shelfmark v1.4.0.
+
+- Check every Hardcover token found with Hardcover at startup and use the
+  first one it accepts, so an old or unscoped token (HTTP 403) no longer
+  blocks a working one; the log names the account and explains refused
+  tokens, including the scopes a new token needs
+
 ## 1.4.0.3
 
 Still based on Shelfmark v1.4.0.

@@ -53,9 +53,35 @@ the first one it finds:
 3. `hardcover_token` in the Calibre-Web Automated app's options
 4. The token in CWA under **Admin → Basic Configuration**
 
-The log shows where the token came from (never the token itself). After
-changing it in CWA, restart this app. Shelfmark's own Hardcover settings then
-show it as set by the environment (**ENV**).
+Each token found is checked with Hardcover at startup, and the first one
+Hardcover accepts is used. The log shows where it came from and which
+Hardcover account it belongs to (never the token itself), for example
+`Hardcover token: CWA profile of admin, connected as <username>`. A token
+Hardcover refuses is skipped, with the reason in the log. After changing the
+token in CWA, restart this app. Shelfmark's own Hardcover settings then show
+it as set by the environment (**ENV**).
+
+### Making a token that works
+
+Since August 2026 Hardcover issues tokens starting with `hc_pat_`, with
+permissions (scopes). Older tokens (long ones starting with `eyJ`) no longer
+work, and a token without the right scopes is refused with **HTTP 403**.
+Create a new one at [hardcover.app/account/api](https://hardcover.app/account/api)
+with these scopes, which Shelfmark needs:
+
+| Scope | Used for |
+|---|---|
+| `read:catalog` | Search, and book, author and series details |
+| `read:library` | Your reading status, such as Want to Read |
+| `read:lists` | Your lists and the books on them |
+| `read:me:content` | Test Connection and "Connected as" (also used by this app's check) |
+| `read:users` | Usernames shown with lists |
+| `write:library` | Setting a reading status from Shelfmark |
+| `write:lists` | Removing a downloaded book from a list (on by default) |
+
+Put the token in your **CWA profile** (it is also what CWA uses to send your
+Kobo reading progress to Hardcover) and restart Calibre-Web Automated and
+then this app.
 
 ## How downloads reach your library
 
