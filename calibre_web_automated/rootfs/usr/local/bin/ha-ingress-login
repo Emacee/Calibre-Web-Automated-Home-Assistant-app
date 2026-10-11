@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Log in automatically through Home Assistant Ingress.
+
+Calibre-Web can log users in from a reverse proxy header. The ingress nginx
+proxy sets that header to the CWA user to log in as. The header gets a
+random name per installation, stored in the app config folder, so that it
+cannot be forged on the direct port 8083: only nginx on the ingress port,
+which only the Supervisor can reach, knows it.
+
+Exit codes: 0 = settings already correct, 10 = settings changed (restart
+CWA if it is running), 20 = app.db not created yet, 1 = error.
+"""
+
+import json
+import os
+import re
+import secrets
+import sqlite3
+import sys
+
+OPTIONS = "/data/options.json"
+APP_DB = "/config/app.db"
+SECRET_FILE = "/config/.ha-ingress-login"
+NGINX_INCLUDE = "/etc/nginx/ha-ingress-login.conf"
+HEADER_RE = re.compile(r"X-HA-Ingress-[0-9a-f]{32}")
+ROLE_ADMIN = 1
+
+EXIT_OK, EXIT_CHANGED, EXIT_WAITING = 0, 10, 20
+
+
+def log(msg):
+    print(f"[ha-addon] {msg}", flush=True)
+
+
+def header_name():
+    """Return this installation's secret header name, creating it once."""
+    try:
+        with open(SECRET_FILE, encoding="ascii") as f:
+            name = f.read().strip()
+    except (FileNotFoundError, UnicodeDecodeError):
+        name = ""
+    if not HEADER_RE.fullmatch(name):
+        name = "X-HA-Ingress-" + secrets.token_hex(16)
+        fd = os.open(SECRET_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="ascii") as f:
+            f.write(name)
+    os.chmod(SECRET_FILE, 0o600)
+    return name
+
+
+def write_include(content):
+    tmp = NGINX_INCLUDE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(content)
+    os.replace(tmp, NGINX_INCLUDE)
+
+
+def find_user(conn, wanted):
+    if wanted:
+        row = conn.execute(
+            "SELECT name FROM user WHERE lower(name) = lower(?)", (wanted,)
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT name FROM user WHERE (role & ?) = ? ORDER BY id LIMIT 1",
+            (ROLE_ADMIN, ROLE_ADMIN),
+        ).fetchone()
+    return row[0] if row else None
+
+
+def main():
+    with open(OPTIONS, encoding="utf-8") as f:
+        options = json.load(f)
+    enabled = options.get("ingress_auto_login", True) is True
+    wanted = (options.get("ingress_user") or "").strip()
+
+    name = header_name()
+    # Until the settings are applied, nginx sends no login header
+    write_include("")
+
+    if not os.path.isfile(APP_DB):
+        return EXIT_WAITING
+
+    conn = sqlite3.connect(APP_DB, timeout=30)
+    try:
+        try:
+            row = conn.execute(
+                "SELECT config_allow_reverse_proxy_header_login,"
+                " config_reverse_proxy_login_header_name FROM settings LIMIT 1"
+            ).fetchone()
+            conn.execute("SELECT name, role FROM user LIMIT 1")
+        except sqlite3.OperationalError:
+            # Tables or columns not created yet by Calibre-Web
+            return EXIT_WAITING
+        if row is None:
+            return EXIT_WAITING
+        allowed, current_name = bool(row[0]), row[1]
+
+        if not enabled:
+            log("Ingress login  : off")
+            # Leave a reverse proxy login set up by the user alone
+            if allowed and current_name == name:
+                with conn:
+                    conn.execute(
+                        "UPDATE settings SET config_allow_reverse_proxy_header_login = 0"
+                    )
+                return EXIT_CHANGED
+            return EXIT_OK
+
+        user = find_user(conn, wanted)
+        if user is None:
+            log(
+                f"WARNING: ingress login: user '{wanted}' not found"
+                if wanted
+                else "WARNING: ingress login: no admin user found"
+            )
+            return EXIT_OK
+        # The name goes into an nginx string, where these cannot be escaped
+        if re.search(r'["\\$;\x00-\x1f]', user):
+            log("WARNING: ingress login: user name contains characters nginx cannot pass on")
+            return EXIT_OK
+
+        changed = not allowed or current_name != name
+        if changed:
+            with conn:
+                conn.execute(
+                    "UPDATE settings SET config_allow_reverse_proxy_header_login = 1,"
+                    " config_reverse_proxy_login_header_name = ?",
+                    (name,),
+                )
+    finally:
+        conn.close()
+
+    write_include(f'proxy_set_header {name} "{user}";\n')
+    log(f"Ingress login  : {user}")
+    return EXIT_CHANGED if changed else EXIT_OK
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception as exc:  # never keep the app from starting
+        log(f"WARNING: ingress login not set up: {exc}")
+        try:
+            write_include("")
+        except OSError:
+            pass
+        sys.exit(1)

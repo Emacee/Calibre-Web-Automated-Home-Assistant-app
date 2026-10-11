@@ -99,6 +99,16 @@ else
     rm -f "$SHARE_DIR/hardcover_token"
 fi
 
+# --- Automatic login through Ingress ---------------------------------------
+# Sets Calibre-Web's reverse proxy login and the nginx header. On the very
+# first start app.db does not exist yet; svc-ha-ingress-login finishes the
+# job once CWA has created it.
+rm -f /run/ha-ingress-login-pending
+: > /etc/nginx/ha-ingress-login.conf
+rc=0
+ha-ingress-login || rc=$?
+[ "$rc" -eq 20 ] && touch /run/ha-ingress-login-pending
+
 while IFS=$'\t' read -r name value; do
     [ -z "$name" ] && continue
     [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || fail "invalid extra_env name '$name'"

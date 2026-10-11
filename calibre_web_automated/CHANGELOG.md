@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.0.11
+
+Still based on Calibre-Web Automated v4.0.8.
+
+- Log in automatically as the CWA admin (or `ingress_user`) when the app is
+  opened from Home Assistant, via Calibre-Web's reverse proxy login with a
+  random header name per installation; the direct port 8083 still asks for a
+  password. New options `ingress_auto_login` (default on) and `ingress_user`
+
 ## 4.0.10
 
 Still based on Calibre-Web Automated v4.0.8.

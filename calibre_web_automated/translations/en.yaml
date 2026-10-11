@@ -30,6 +30,18 @@ configuration:
     description: >-
       Skip the startup scan that finds metadata.db in the library folder and
       configures it automatically.
+  ingress_auto_login:
+    name: Log in automatically in Home Assistant
+    description: >-
+      Opening the app from Home Assistant logs you in as the CWA admin (or
+      the user below) without a login page. The direct port 8083 still asks
+      for a password. Every Home Assistant user who can open the panel gets
+      this access.
+  ingress_user:
+    name: Ingress user
+    description: >-
+      Optional. CWA username to log in as from Home Assistant. Empty: the
+      first admin user.
   extra_env:
     name: Extra environment variables
     description: Advanced, additional CWA environment variables.

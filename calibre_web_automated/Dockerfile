@@ -19,7 +19,9 @@ RUN apt-get update \
 COPY rootfs/ /
 RUN chmod +x /etc/s6-overlay/s6-rc.d/init-ha-addon/run \
              /etc/s6-overlay/s6-rc.d/svc-ha-ingress/run \
-             /etc/s6-overlay/s6-rc.d/init-ha-library-perms/run
+             /etc/s6-overlay/s6-rc.d/init-ha-library-perms/run \
+             /etc/s6-overlay/s6-rc.d/svc-ha-ingress-login/run \
+             /usr/local/bin/ha-ingress-login
 
 FROM scratch
 COPY --from=cwa / /

@@ -1,5 +1,5 @@
 name: Calibre-Web Automated
-version: "4.0.10"
+version: "4.0.11"
 slug: calibre_web_automated
 description: >-
   Calibre-Web Automated: e-book library with web reader, automatic ingest,
@@ -43,6 +43,7 @@ options:
   network_share_mode: false
   watch_mode: inotify
   disable_library_automount: false
+  ingress_auto_login: true
   extra_env: []
 
 schema:
@@ -52,6 +53,8 @@ schema:
   network_share_mode: bool
   watch_mode: list(inotify|poll)
   disable_library_automount: bool
+  ingress_auto_login: bool
+  ingress_user: str?
   extra_env:
     - name: str
       value: str

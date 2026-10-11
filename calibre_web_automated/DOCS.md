@@ -41,6 +41,8 @@ You can also upload books in the web interface.
 | `hardcover_token` | Optional [Hardcover API token](https://docs.hardcover.app/api/getting-started/) to use Hardcover as a metadata provider. |
 | `network_share_mode` | Turn on when the library or ingest folder is on a network share (an NFS/SMB storage mounted under **Settings → System → Storage**, which shows up in `/media` or `/share`). Disables SQLite WAL and ownership changes, and uses polling for the ingest folder. |
 | `watch_mode` | `inotify` (default) reacts to new files immediately. `poll` scans periodically; use it when new files are not picked up, e.g. on network shares. |
+| `ingress_auto_login` | Log in automatically when opened from Home Assistant (default on). See below. |
+| `ingress_user` | Optional. CWA user for the automatic login. Empty: the first admin user. |
 | `disable_library_automount` | Skip the startup scan that looks for `metadata.db` in the library folder and configures it automatically. |
 | `extra_env` | Advanced: `name`/`value` pairs for other CWA environment variables, e.g. `TRUSTED_PROXY_COUNT`. |
 
@@ -81,16 +83,28 @@ If you only use the browser, you can disable the port in the app's
 **Network** section. Don't expose port 8083 to the internet without a reverse
 proxy with HTTPS.
 
-## Logging in with your Home Assistant user (optional)
+## Automatic login in Home Assistant
 
-Home Assistant Ingress sends the logged-in user in the `X-Remote-User-Name`
-header. Calibre-Web can use this to log you in automatically: under **Admin →
-Edit Basic Configuration → Feature Configuration** enable **Allow Reverse
-Proxy Authentication** with header name `X-Remote-User-Name`, and create CWA
-users whose usernames match your Home Assistant usernames.
+When you open the app from Home Assistant (Ingress), you are logged in
+automatically as the CWA admin, without a login page. The first admin user is
+used, or the user set in `ingress_user`. E-readers and browsers on the direct
+port 8083 still have to log in with a password.
 
-**Only do this when port 8083 is disabled.** On the direct port, anyone on your
-network could send that header themselves and log in as any user.
+How it works: Calibre-Web's reverse proxy login is switched on with a header
+name that is random for each installation, stored in `.ha-ingress-login` in
+the app config folder. Only the Ingress proxy, which only Home Assistant can
+reach, sends that header, so it cannot be forged on port 8083. The header
+name is never written to the log. On the very first start Calibre-Web
+restarts once to apply the setting.
+
+Things to know:
+
+- Every Home Assistant user who can open the panel gets this CWA account.
+  With several Home Assistant users, set `ingress_user` to a non-admin CWA
+  user, or turn `ingress_auto_login` off.
+- Logging out has no effect in Home Assistant while this is on.
+- It replaces any reverse proxy login you configured yourself in CWA. Turning
+  `ingress_auto_login` off switches only this app's own setup off.
 
 ## How it works
 
