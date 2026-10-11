@@ -30,7 +30,7 @@ Ingress support works.
 
 | App | Version | Based on |
 |---|---|---|
-| [Calibre-Web Automated](calibre_web_automated) | 4.0.8.1 | [crocodilestick/calibre-web-automated](https://hub.docker.com/r/crocodilestick/calibre-web-automated) v4.0.8 |
+| [Calibre-Web Automated](calibre_web_automated) | 4.0.9 | [crocodilestick/calibre-web-automated](https://hub.docker.com/r/crocodilestick/calibre-web-automated) v4.0.8 |
 
 ## Credits
 

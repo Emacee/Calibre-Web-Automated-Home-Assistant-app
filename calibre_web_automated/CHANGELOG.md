@@ -1,6 +1,8 @@
 # Changelog
 
-## 4.0.8.1
+## 4.0.9
+
+Still based on Calibre-Web Automated v4.0.8.
 
 - Use Home Assistant's current app conventions: map type `app_config`
   instead of the legacy `addon_config` (same folder, still mounted at
