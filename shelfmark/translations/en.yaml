@@ -1,0 +1,22 @@
+configuration:
+  ingest_path:
+    name: Download folder
+    description: >-
+      Optional. Folder under /share or /media where downloaded books are
+      saved. Leave empty to use the ingest folder of the Calibre-Web Automated
+      app, so downloads are imported into your library automatically.
+  hardcover_token:
+    name: Hardcover API token
+    description: >-
+      Optional. Leave empty to use the token set in the Calibre-Web Automated
+      app. Needed to browse your Hardcover lists, such as Want to Read.
+  use_cwa_login:
+    name: Log in with Calibre-Web Automated users
+    description: >-
+      Log in to Shelfmark with your Calibre-Web Automated username and
+      password. Turn off to set up login in Shelfmark's own settings.
+  extra_env:
+    name: Extra environment variables
+    description: Advanced, additional Shelfmark environment variables.
+network:
+  8084/tcp: Web interface (direct access, not needed for Ingress)

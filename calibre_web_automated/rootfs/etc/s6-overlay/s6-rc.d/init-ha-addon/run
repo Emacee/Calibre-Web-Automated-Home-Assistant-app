@@ -82,6 +82,23 @@ setenv DISABLE_LIBRARY_AUTOMOUNT "$(opt_bool '.disable_library_automount')"
 HARDCOVER_TOKEN="$(opt '.hardcover_token')"
 [ -n "$HARDCOVER_TOKEN" ] && setenv HARDCOVER_TOKEN "$HARDCOVER_TOKEN"
 
+# --- Hand-off to companion apps (Shelfmark) -------------------------------
+# Companion apps from this repository map all app config folders read-only
+# and pick up the folders and Hardcover token from here, so they need no
+# setup of their own. The token file is only readable by its owner (CWA's
+# init later hands all of /config to abc) and root.
+SHARE_DIR=/config/.ha-share
+mkdir -p "$SHARE_DIR"
+jq -n --arg library "$LIBRARY_PATH" --arg ingest "$INGEST_PATH" \
+    '{library_path: $library, ingest_path: $ingest}' > "$SHARE_DIR/cwa.json"
+chmod 644 "$SHARE_DIR/cwa.json"
+if [ -n "$HARDCOVER_TOKEN" ]; then
+    (umask 077 && printf '%s' "$HARDCOVER_TOKEN" > "$SHARE_DIR/hardcover_token")
+    chmod 600 "$SHARE_DIR/hardcover_token"
+else
+    rm -f "$SHARE_DIR/hardcover_token"
+fi
+
 while IFS=$'\t' read -r name value; do
     [ -z "$name" ] && continue
     [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || fail "invalid extra_env name '$name'"

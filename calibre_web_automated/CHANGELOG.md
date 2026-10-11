@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.0.10
+
+Still based on Calibre-Web Automated v4.0.8.
+
+- Share the library and ingest folder, and the Hardcover token, with the new
+  Shelfmark app from this repository, via `.ha-share` in the app config
+  folder (token file only readable by the app itself)
+
 ## 4.0.9
 
 Still based on Calibre-Web Automated v4.0.8.

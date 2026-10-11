@@ -58,6 +58,15 @@ Assistant.
 Calibre plugins can be placed in `.config/calibre/plugins` inside the app
 config folder.
 
+## Downloading books with Shelfmark
+
+The **Shelfmark** app from this repository searches and downloads books, also
+from your Hardcover lists such as Want to Read, into the ingest folder of
+this app. On every start this app writes its library and ingest folder, and
+the `hardcover_token` if set, to `.ha-share` in its config folder (the token
+file is only readable by the app itself). Shelfmark reads them from there, so it needs
+no setup of its own. Restart Shelfmark after changing these options here.
+
 ## Direct access, OPDS and Kobo sync
 
 Port **8083** is open by default at `http://homeassistant.local:8083`. E-readers

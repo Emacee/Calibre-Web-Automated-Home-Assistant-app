@@ -30,13 +30,20 @@ Ingress support works.
 
 | App | Version | Based on |
 |---|---|---|
-| [Calibre-Web Automated](calibre_web_automated) | 4.0.9 | [crocodilestick/calibre-web-automated](https://hub.docker.com/r/crocodilestick/calibre-web-automated) v4.0.8 |
+| [Calibre-Web Automated](calibre_web_automated) | 4.0.10 | [crocodilestick/calibre-web-automated](https://hub.docker.com/r/crocodilestick/calibre-web-automated) v4.0.8 |
+| [Shelfmark](shelfmark) | 1.4.0 | [calibrain/shelfmark](https://github.com/calibrain/shelfmark) v1.4.0 |
+
+Shelfmark searches and downloads books, also from your Hardcover lists, into
+the Calibre-Web Automated ingest folder. It takes its settings (folders,
+Hardcover token, users) from the Calibre-Web Automated app.
 
 ## Credits
 
-This is an unofficial app and not affiliated with the Calibre-Web Automated
-project. All credit for the application goes to
+These are unofficial apps and not affiliated with the Calibre-Web Automated
+or Shelfmark projects. All credit for the applications goes to
 [CrocodileStick and the CWA contributors](https://github.com/crocodilestick/Calibre-Web-Automated),
 which builds on [Calibre-Web](https://github.com/janeczku/calibre-web) and
-[Calibre](https://calibre-ebook.com/). Report problems with the app itself
-(installation, Ingress, options) here, and problems with CWA upstream.
+[Calibre](https://calibre-ebook.com/), and to
+[CaliBrain and the Shelfmark contributors](https://github.com/calibrain/shelfmark).
+Report problems with the apps themselves (installation, Ingress, options)
+here, and problems with CWA or Shelfmark upstream.

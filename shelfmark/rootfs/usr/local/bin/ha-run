@@ -1,0 +1,123 @@
+#!/bin/bash
+#
+# Home Assistant glue, runs before Shelfmark's own entrypoint:
+#  - reads the app options from /data/options.json
+#  - picks up the ingest folder, library, Hardcover token and user database
+#    shared by the Calibre-Web Automated app (read-only via /app_configs)
+#  - exports them as Shelfmark environment variables
+#  - starts the nginx proxy for Ingress, then hands over to "$@"
+
+set -e
+
+OPTIONS=/data/options.json
+APP_CONFIGS=/app_configs
+
+log()      { echo "[ha-app] $*"; }
+fail()     { echo "[ha-app] ERROR: $*" >&2; exit 1; }
+opt()      { jq -r "$1 // empty" "$OPTIONS"; }
+opt_bool() { jq -r "if $1 == true then \"true\" else \"false\" end" "$OPTIONS"; }
+
+[ -f "$OPTIONS" ] || fail "$OPTIONS not found"
+
+# --- Calibre-Web Automated app ----------------------------------------------
+# Its config folder is <repository id>_calibre_web_automated (or
+# local_calibre_web_automated for a local copy of the app).
+CWA_DIR=""
+for dir in "$APP_CONFIGS"/*_calibre_web_automated; do
+    [ -d "$dir" ] || continue
+    if [ -z "$CWA_DIR" ]; then
+        CWA_DIR="$dir"
+    else
+        log "WARNING: several Calibre-Web Automated apps found, using $CWA_DIR"
+    fi
+done
+
+CWA_SHARE=""
+if [ -z "$CWA_DIR" ]; then
+    log "WARNING: Calibre-Web Automated app not found, using this app's options only"
+elif [ ! -f "$CWA_DIR/.ha-share/cwa.json" ]; then
+    log "WARNING: start or update the Calibre-Web Automated app first to share its settings"
+else
+    CWA_SHARE="$CWA_DIR/.ha-share"
+    log "Calibre-Web Automated app: $CWA_DIR"
+fi
+
+cwa_setting() {
+    [ -n "$CWA_SHARE" ] || return 0
+    jq -r "$1 // empty" "$CWA_SHARE/cwa.json"
+}
+
+# --- Ingest folder ----------------------------------------------------------
+INGEST_PATH="$(opt '.ingest_path')"
+[ -n "$INGEST_PATH" ] || INGEST_PATH="$(cwa_setting '.ingest_path')"
+[ -n "$INGEST_PATH" ] || INGEST_PATH=/share/cwa-book-ingest
+INGEST_PATH="${INGEST_PATH%/}"
+
+# Only /share and /media are mapped into the app and shared with CWA
+case "$INGEST_PATH" in
+    /share/?*|/media/?*) ;;
+    *) fail "ingest_path must be a folder under /share or /media (got '$INGEST_PATH')" ;;
+esac
+case "$INGEST_PATH" in
+    *..*) fail "ingest_path must not contain '..' (got '$INGEST_PATH')" ;;
+esac
+export INGEST_DIR="$INGEST_PATH"
+
+# --- Library check: mark books you already own ------------------------------
+LIBRARY_PATH="$(cwa_setting '.library_path')"
+if [ -n "$LIBRARY_PATH" ] && [ -f "$LIBRARY_PATH/metadata.db" ]; then
+    export LIBRARY_CHECK_CALIBRE_ENABLED=true
+    export CALIBRE_LIBRARY_DB_PATH="$LIBRARY_PATH/metadata.db"
+fi
+
+# --- Hardcover --------------------------------------------------------------
+HARDCOVER_SOURCE="not set"
+HARDCOVER_TOKEN="$(opt '.hardcover_token')"
+if [ -n "$HARDCOVER_TOKEN" ]; then
+    HARDCOVER_SOURCE="this app's options"
+elif [ -n "$CWA_SHARE" ] && [ -s "$CWA_SHARE/hardcover_token" ]; then
+    HARDCOVER_TOKEN="$(cat "$CWA_SHARE/hardcover_token")"
+    HARDCOVER_SOURCE="Calibre-Web Automated app"
+fi
+if [ -n "$HARDCOVER_TOKEN" ]; then
+    export HARDCOVER_ENABLED=true
+    export HARDCOVER_API_KEY="$HARDCOVER_TOKEN"
+    export METADATA_PROVIDER=hardcover
+fi
+unset HARDCOVER_TOKEN
+
+# --- Login with the Calibre-Web Automated users -----------------------------
+LOGIN="Shelfmark settings"
+if [ "$(opt_bool '.use_cwa_login')" = "true" ]; then
+    if [ -n "$CWA_DIR" ] && [ -f "$CWA_DIR/app.db" ]; then
+        export AUTH_METHOD=cwa
+        export CWA_DB_PATH="$CWA_DIR/app.db"
+        LOGIN="Calibre-Web Automated users"
+    else
+        log "WARNING: CWA user database not found, login is set in Shelfmark"
+    fi
+fi
+
+# --- Runtime user -----------------------------------------------------------
+# Same uid/gid as CWA's "abc" user, so CWA can process and remove the
+# downloaded files in the ingest folder
+export PUID=911
+export PGID=911
+
+# --- Extra environment variables (last, so they can override the above) ----
+while IFS=$'\t' read -r name value; do
+    [ -z "$name" ] && continue
+    [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || fail "invalid extra_env name '$name'"
+    export "$name=$value"
+    log "extra env: $name"
+done < <(jq -r '(.extra_env // [])[] | [.name, .value] | @tsv' "$OPTIONS")
+
+log "Ingest folder  : $INGEST_DIR"
+log "Library check  : ${CALIBRE_LIBRARY_DB_PATH:-off}"
+log "Hardcover token: $HARDCOVER_SOURCE"
+log "Login          : $LOGIN"
+
+# --- Ingress proxy ----------------------------------------------------------
+nginx -c /etc/nginx/ha-ingress.conf
+
+exec "$@"
