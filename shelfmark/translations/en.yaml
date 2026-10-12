@@ -5,6 +5,13 @@ configuration:
       Optional. Leave empty to use the token from Calibre-Web Automated: your
       CWA profile, the CWA app options or CWA's Basic Configuration. Needed
       to browse your Hardcover lists, such as Want to Read.
+  tor:
+    name: Route traffic through Tor
+    description: >-
+      Send all of Shelfmark's internet traffic (searches, downloads and
+      Hardcover) through Tor. Starting takes up to a few minutes, some sources
+      block Tor, and the app stops instead of leaking traffic when Tor fails.
+      Turn on the watchdog to have it restarted.
   ingress_auto_login:
     name: Log in automatically in Home Assistant
     description: >-

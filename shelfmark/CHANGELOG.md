@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0.6
+
+Still based on Shelfmark v1.4.0.
+
+- New option `tor` (default off) to route all of Shelfmark's traffic through
+  Tor, using the Tor support already in the Shelfmark image. The app now has
+  the `NET_ADMIN` and `NET_RAW` permissions this needs, and a watchdog
+  (TCP on the Ingress port) so Home Assistant can restart it when it stops
+
 ## 1.4.0.5
 
 Still based on Shelfmark v1.4.0.
