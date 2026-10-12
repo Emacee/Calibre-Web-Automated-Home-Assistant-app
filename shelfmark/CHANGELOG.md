@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0.7
+## 1.5
 
 Still based on Shelfmark v1.4.0.
 
