@@ -5,7 +5,8 @@
 #  - picks up the ingest folder, library, Hardcover token and user database
 #    shared by the Calibre-Web Automated app (read-only via /app_configs)
 #  - exports them as Shelfmark environment variables
-#  - starts the nginx proxy for Ingress, then hands over to "$@"
+#  - starts the nginx proxy for Ingress and the Want to Read watcher, then
+#    hands over to "$@"
 
 set -e
 
@@ -161,6 +162,29 @@ if [ -z "$LOGIN" ]; then
     fi
 fi
 
+# --- API key for the Want to Read watcher ------------------------------------
+# Random for this installation, stored in /config and never logged. Only the
+# watcher in this app uses it, on localhost.
+API_KEY_FILE=/config/.ha-api-key
+WANT_TO_READ="off"
+if [ "$(opt_bool '.want_to_read_auto_download')" = "true" ]; then
+    if [ -z "${HARDCOVER_API_KEY:-}" ]; then
+        WANT_TO_READ="off (no Hardcover token)"
+    else
+        key="$(cat "$API_KEY_FILE" 2>/dev/null || true)"
+        if ! [[ "$key" =~ ^[0-9a-f]{64}$ ]]; then
+            key="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+            (umask 077 && printf '%s' "$key" > "$API_KEY_FILE")
+        fi
+        chmod 600 "$API_KEY_FILE"
+        export SHELFMARK_API_KEY="$key"
+        unset key
+        WANT_TO_READ_HOURS="$(opt '.want_to_read_interval_hours')"
+        [[ "$WANT_TO_READ_HOURS" =~ ^[0-9]+$ ]] || WANT_TO_READ_HOURS=6
+        WANT_TO_READ="every $WANT_TO_READ_HOURS hour(s)"
+    fi
+fi
+
 # --- Runtime user -----------------------------------------------------------
 # Same uid/gid as CWA's "abc" user, so CWA can process and remove the
 # downloaded files in the ingest folder
@@ -180,8 +204,16 @@ log "Library check  : ${CALIBRE_LIBRARY_DB_PATH:-off}"
 log "Library button : ${CALIBRE_WEB_URL:-off}"
 log "Hardcover token: $HARDCOVER_SOURCE"
 log "Login          : $LOGIN"
+log "Want to Read   : $WANT_TO_READ"
 
 # --- Ingress proxy ----------------------------------------------------------
 nginx -c /etc/nginx/ha-ingress.conf
+
+# --- Want to Read watcher -----------------------------------------------------
+# Shelfmark has no background automation; this checks the Hardcover Want to
+# Read list now and then and queues downloads through Shelfmark's API
+if [ -n "${WANT_TO_READ_HOURS:-}" ]; then
+    ha-want-to-read "$WANT_TO_READ_HOURS" &
+fi
 
 exec "$@"

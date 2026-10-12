@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""Download the books on your Hardcover Want to Read list automatically.
+
+Shelfmark itself has no background automation: it only searches when you
+search. This watcher runs next to it, and every few hours goes through the
+Want to Read list of the Hardcover account whose token Shelfmark uses, through
+Shelfmark's own API (so the same sources, languages and library check apply):
+
+  1. books Shelfmark's library check marks as owned are skipped
+  2. for each other book it searches releases in the enabled sources
+  3. it queues the best match in a format CWA imports; the download lands in
+     the CWA ingest folder and shows up under Activity in Shelfmark
+
+What was queued or not found is kept in /config/.ha-want-to-read.json, so a
+book is not downloaded twice while CWA imports it and a search that found
+nothing is only retried a day later.
+
+Usage: ha-want-to-read <interval in hours>   (needs SHELFMARK_API_KEY)
+"""
+
+import json
+import os
+import re
+import sys
+import time
+import unicodedata
+import urllib.error
+import urllib.parse
+import urllib.request
+
+BASE = f"http://127.0.0.1:{os.environ.get('FLASK_PORT', '8084')}/api"
+KEY = os.environ.get("SHELFMARK_API_KEY", "")
+STATE_FILE = "/config/.ha-want-to-read.json"
+WANT_TO_READ = "status:1"  # Hardcover reading status 1 = Want to Read
+
+MAX_PER_RUN = 10  # releases queued per run, the rest waits for the next run
+RETRY_NOT_FOUND = 24 * 3600  # nothing found: search again after a day
+RETRY_QUEUED = 7 * 24 * 3600  # queued but still not in the library: again after a week
+FIRST_RUN_DELAY = 120  # let Shelfmark start and warm up first
+
+FORMATS = [
+    f.strip().lower()
+    for f in os.environ.get("SUPPORTED_FORMATS", "epub").split(",")
+    if f.strip()
+]
+
+
+def log(msg):
+    print(f"[want-to-read] {msg}", flush=True)
+
+
+def api(path, params=None, body=None, timeout=60):
+    url = BASE + path
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    data = None
+    headers = {"X-Api-Key": KEY, "Accept": "application/json"}
+    if body is not None:
+        data = json.dumps(body).encode()
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        try:
+            detail = json.loads(e.read() or b"{}")
+            detail = detail.get("message") or detail.get("error") or detail
+        except ValueError:
+            detail = ""
+        raise RuntimeError(f"HTTP {e.code} on {path}: {detail}") from None
+
+
+def load_state():
+    try:
+        with open(STATE_FILE) as f:
+            state = json.load(f)
+        return state if isinstance(state, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state):
+    tmp = STATE_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(state, f, indent=1, sort_keys=True)
+    os.replace(tmp, STATE_FILE)
+
+
+def words(text):
+    text = unicodedata.normalize("NFKD", str(text or "")).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).split()
+
+
+def title_candidates(book):
+    titles = [book.get("search_title"), book.get("title")]
+    titles += list((book.get("titles_by_language") or {}).values())
+    result = []
+    for title in titles:
+        if not title:
+            continue
+        # "Title: A Subtitle" -> "Title"; releases often leave the subtitle out
+        for variant in (title, re.split(r"[:(\[]", title)[0]):
+            w = words(variant)
+            if w and w not in result:
+                result.append(w)
+    return result
+
+
+def author_names(book):
+    names = list(book.get("authors") or [])
+    if book.get("search_author"):
+        names.append(book["search_author"])
+    # Surnames are what release metadata reliably agrees on
+    return {words(n)[-1] for n in names if words(n)}
+
+
+def title_extra_words(book, release):
+    """Words in the release title beyond the book title, None when no match.
+
+    Fewer is better: for "Dune", "Dune" beats "Dune Messiah".
+    """
+    release_words = set(words(release.get("title")))
+    surnames = author_names(book)
+    extras = [
+        len(release_words - set(t) - surnames)
+        for t in title_candidates(book)
+        if set(t) <= release_words
+    ]
+    return min(extras) if extras else None
+
+
+def author_matches(book, release):
+    release_author = (release.get("extra") or {}).get("author")
+    surnames = author_names(book)
+    if release_author and surnames:
+        return bool(surnames & set(words(release_author)))
+    return True
+
+
+def pick_release(book, releases):
+    best, best_key = None, None
+    for release in releases:
+        fmt = str(release.get("format") or "").lower().lstrip(".")
+        if fmt not in FORMATS:
+            continue
+        if release.get("content_type") not in (None, "", "ebook"):
+            continue
+        extra_words = title_extra_words(book, release)
+        if extra_words is None or not author_matches(book, release):
+            continue
+        extra = release.get("extra") or {}
+        popularity = release.get("seeders") or extra.get("downloads") or 0
+        # Closest title first, then earlier in SUPPORTED_FORMATS (epub
+        # first), then popularity
+        key = (extra_words, FORMATS.index(fmt), -int(popularity or 0))
+        if best_key is None or key < best_key:
+            best, best_key = release, key
+    return best
+
+
+def download_payload(book, release):
+    authors = book.get("authors") or []
+    return {
+        "source": release["source"],
+        "source_id": release["source_id"],
+        "title": book.get("title"),
+        "author": ", ".join(authors),
+        "year": book.get("publish_year"),
+        "format": release.get("format"),
+        "size": release.get("size"),
+        "size_bytes": release.get("size_bytes"),
+        "downloads": (release.get("extra") or {}).get("downloads") or 0,
+        "download_url": release.get("download_url"),
+        "protocol": release.get("protocol"),
+        "indexer": release.get("indexer"),
+        "seeders": release.get("seeders"),
+        "extra": release.get("extra") or {},
+        "content_type": "ebook",
+        "series_name": book.get("series_name"),
+        "series_position": book.get("series_position"),
+        "subtitle": book.get("subtitle"),
+        "language": release.get("language"),
+    }
+
+
+def want_to_read():
+    books, page = [], 1
+    while True:
+        result = api(
+            "/metadata/search",
+            {"provider": "hardcover", "hardcover_list": WANT_TO_READ, "limit": 100, "page": page},
+        )
+        books += result.get("books") or []
+        if not result.get("has_more") or page >= 20:
+            return books
+        page += 1
+
+
+def owned(book):
+    library = book.get("library")
+    return bool(library and library.get("ebook"))
+
+
+def run_once():
+    books = want_to_read()
+    state = load_state()
+    now = time.time()
+    on_list = {str(b.get("provider_id")) for b in books}
+    # Forget books that left the list, so re-adding one starts afresh
+    state = {k: v for k, v in state.items() if k in on_list}
+
+    library_check = any(b.get("library") is not None for b in books)
+    todo, skipped_owned = [], 0
+    for book in books:
+        book_id = str(book.get("provider_id"))
+        if owned(book):
+            skipped_owned += 1
+            state.pop(book_id, None)
+            continue
+        entry = state.get(book_id) or {}
+        age = now - entry.get("time", 0)
+        if entry.get("status") == "queued" and (not library_check or age < RETRY_QUEUED):
+            continue
+        if entry.get("status") == "not_found" and age < RETRY_NOT_FOUND:
+            continue
+        todo.append(book)
+
+    log(
+        f"Want to Read: {len(books)} book(s), {skipped_owned} already in the library, "
+        f"{len(todo)} to search" + ("" if library_check else " (library check is off)")
+    )
+
+    queued = 0
+    for book in todo:
+        if queued >= MAX_PER_RUN:
+            log(f"Queued {MAX_PER_RUN} this run, the rest follows next run")
+            break
+        book_id = str(book.get("provider_id"))
+        label = f"'{book.get('title')}'" + (
+            f" by {', '.join(book.get('authors') or [])}" if book.get("authors") else ""
+        )
+        try:
+            result = api(
+                "/releases",
+                {"provider": "hardcover", "book_id": book_id, "content_type": "ebook"},
+                timeout=600,
+            )
+        except RuntimeError as e:
+            log(f"{label}: release search failed: {e}")
+            continue
+        release = pick_release(result.get("book") or book, result.get("releases") or [])
+        if release is None:
+            log(f"{label}: no matching {'/'.join(FORMATS)} release found, retrying in a day")
+            state[book_id] = {"status": "not_found", "time": now, "title": book.get("title")}
+            save_state(state)
+            continue
+        try:
+            api("/releases/download", body=download_payload(result.get("book") or book, release))
+        except RuntimeError as e:
+            log(f"{label}: could not queue the download: {e}")
+            continue
+        queued += 1
+        log(f"{label}: queued {release.get('format')} from {release.get('indexer') or release['source']}")
+        state[book_id] = {"status": "queued", "time": now, "title": book.get("title")}
+        save_state(state)
+
+    save_state(state)
+
+
+def wait_for_shelfmark():
+    for _ in range(60):
+        try:
+            api("/status", timeout=10)
+            return True
+        except (RuntimeError, OSError, ValueError):
+            time.sleep(10)
+    return False
+
+
+def main():
+    interval = max(1, int(sys.argv[1] if len(sys.argv) > 1 else 6)) * 3600
+    if not KEY:
+        log("ERROR: no SHELFMARK_API_KEY, not starting")
+        return
+    time.sleep(FIRST_RUN_DELAY)
+    while True:
+        if wait_for_shelfmark():
+            try:
+                run_once()
+            except (RuntimeError, OSError, ValueError) as e:
+                log(f"Check failed: {e}")
+        else:
+            log("Shelfmark does not answer, trying again next run")
+        log(f"Next check in {interval // 3600} hour(s)")
+        time.sleep(interval)
+
+
+if __name__ == "__main__":
+    main()

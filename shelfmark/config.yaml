@@ -1,5 +1,5 @@
 name: Shelfmark
-version: "1.4.0.5"
+version: "1.4.0.6"
 slug: shelfmark
 description: >-
   Search and download books, also from your Hardcover lists, straight into
@@ -44,12 +44,16 @@ map:
 options:
   ingress_auto_login: true
   use_cwa_login: true
+  want_to_read_auto_download: true
+  want_to_read_interval_hours: 6
   extra_env: []
 
 schema:
   hardcover_token: password?
   ingress_auto_login: bool
   use_cwa_login: bool
+  want_to_read_auto_download: bool
+  want_to_read_interval_hours: int(1,168)
   extra_env:
     - name: str
       value: str

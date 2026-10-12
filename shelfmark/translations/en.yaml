@@ -17,6 +17,16 @@ configuration:
       When not logged in automatically: log in with your Calibre-Web
       Automated username and password. Turn off to set up login in
       Shelfmark's own settings.
+  want_to_read_auto_download:
+    name: Download Want to Read automatically
+    description: >-
+      Every few hours, search the books on your Hardcover Want to Read list
+      that are not in your library yet and download the best match into the
+      Calibre-Web Automated ingest folder. Needs a Hardcover token and at
+      least one source set up in Shelfmark.
+  want_to_read_interval_hours:
+    name: Want to Read check interval (hours)
+    description: How often the Want to Read list is checked (1-168 hours).
   extra_env:
     name: Extra environment variables
     description: Advanced, additional Shelfmark environment variables.

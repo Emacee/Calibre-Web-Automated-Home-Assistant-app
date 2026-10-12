@@ -138,6 +138,44 @@ later. By default Shelfmark removes a downloaded book from that Hardcover
 list. That needs a token with write access; you can turn it off in
 Shelfmark's settings under Hardcover → **Auto-Remove from List on Download**.
 
+## Automatic downloads from Want to Read
+
+Shelfmark itself has no background automation: it only searches and
+downloads when you do so in its web UI, so its **Activity** list stays empty
+until something is downloaded. This app adds a small watcher that does it
+for you (option `want_to_read_auto_download`, on by default). Every
+`want_to_read_interval_hours` hours (default 6, first check two minutes after
+start) it:
+
+1. Fetches the **Want to Read** list of the Hardcover account whose token is
+   used (see "Hardcover token"). The list is read straight from Hardcover;
+   it doesn't need to be in Calibre.
+2. Skips books already in your Calibre library (Shelfmark's library check).
+3. Searches each other book in the sources you set up in Shelfmark (with
+   your language settings) and picks a release whose title and author match,
+   preferring EPUB, then the other formats CWA imports.
+4. Queues it in Shelfmark. It then shows up under **Activity**, lands in the
+   CWA ingest folder and is imported into your library.
+
+At most 10 books are queued per check; the rest follow in the next check. A
+book for which nothing was found is searched again after a day; a book that
+was queued but is still not in the library after a week is searched again.
+This is kept in `.ha-want-to-read.json` in this app's config folder (delete
+it to start afresh). Books are not removed from your Hardcover list; once
+CWA has imported them they are simply skipped.
+
+What to check when nothing happens:
+
+- The log shows `Want to Read   : every 6 hour(s)` at startup and
+  `[want-to-read]` lines for each check. `off (no Hardcover token)` means no
+  working Hardcover token was found.
+- Shelfmark needs at least one source: finish the setup wizard on first use.
+- A token needs the `read:library` scope to read Want to Read.
+
+The watcher talks to Shelfmark on localhost with an API key that is random
+for this installation, stored in `.ha-api-key` in this app's config folder
+and never logged. Downloads it queues are done as Shelfmark's first admin.
+
 ## Configuration
 
 | Option | Description |
@@ -145,6 +183,8 @@ Shelfmark's settings under Hardcover → **Auto-Remove from List on Download**.
 | `hardcover_token` | Optional. Hardcover API token. Empty (default): the token from the Calibre-Web Automated app. |
 | `ingress_auto_login` | Log in automatically from Home Assistant as the Calibre-Web Automated Ingress user (default on). See above. |
 | `use_cwa_login` | When not logged in automatically: log in with the Calibre-Web Automated users and their passwords (default on). Turn off to set up login in Shelfmark's settings. |
+| `want_to_read_auto_download` | Download the books on your Hardcover Want to Read list automatically (default on). See above. |
+| `want_to_read_interval_hours` | How often the Want to Read list is checked, in hours (1-168, default 6). |
 | `extra_env` | Advanced: `name`/`value` pairs for other [Shelfmark environment variables](https://github.com/calibrain/shelfmark/blob/main/docs/environment-variables.md). These override the values above, including the fixed settings. |
 
 The time zone is taken from Home Assistant.

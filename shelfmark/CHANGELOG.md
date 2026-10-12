@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0.6
+
+Still based on Shelfmark v1.4.0.
+
+- Download the books on your Hardcover **Want to Read** list automatically.
+  Shelfmark itself only searches when you search; a watcher in this app now
+  checks the list every few hours (new options `want_to_read_auto_download`,
+  default on, and `want_to_read_interval_hours`, default 6), skips books
+  already in your Calibre library and queues the best EPUB (or other format
+  CWA imports) through Shelfmark, so it shows up under Activity
+
 ## 1.4.0.5
 
 Still based on Shelfmark v1.4.0.
