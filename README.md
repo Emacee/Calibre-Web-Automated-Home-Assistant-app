@@ -3,7 +3,7 @@
 Home Assistant app (add-on) for [Calibre-Web Automated](https://github.com/crocodilestick/Calibre-Web-Automated)
 (CWA): an e-book library with a web reader, automatic import, conversion and
 metadata handling of new books, OPDS and Kobo sync. It opens in the Home
-Assistant sidebar through Ingress, and stays reachable on port 8083 for
+Assistant sidebar through Ingress, and stays reachable on port 8084 for
 e-readers.
 
 ## Installation
@@ -17,7 +17,7 @@ Or manually:
    `https://github.com/Emacee/Calibre-Web-Automated-Home-Assistant-app`.
 3. Install **Calibre-Web Automated** and start it. The image is built on your
    device, which takes several minutes the first time.
-4. Click **Open web UI** (turn on **Show in sidebar** for a **Books** entry)
+4. Click **Open web UI** (turn on **Show in sidebar** for a **Calibre** entry)
    and log in with `admin` / `admin123`, then change that password right away.
 
 Supported architectures: `amd64` and `aarch64`.
@@ -30,8 +30,8 @@ Ingress support works.
 
 | App | Version | Based on |
 |---|---|---|
-| [Calibre-Web Automated](calibre_web_automated) | 4.0.13 | [crocodilestick/calibre-web-automated](https://hub.docker.com/r/crocodilestick/calibre-web-automated) v4.0.8 |
-| [Shelfmark](shelfmark) | 1.4.0.5 | [calibrain/shelfmark](https://github.com/calibrain/shelfmark) v1.4.0 |
+| [Calibre-Web Automated](calibre_web_automated) | 4.0.14 | [crocodilestick/calibre-web-automated](https://hub.docker.com/r/crocodilestick/calibre-web-automated) v4.0.8 |
+| [Shelfmark](shelfmark) | 1.4.0.6 | [calibrain/shelfmark](https://github.com/calibrain/shelfmark) v1.4.0 |
 
 Shelfmark searches and downloads books, also from your Hardcover lists, into
 the Calibre-Web Automated ingest folder. It takes its settings (folders,

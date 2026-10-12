@@ -147,9 +147,10 @@ for you (option `want_to_read_auto_download`, on by default). Every
 `want_to_read_interval_hours` hours (default 6, first check two minutes after
 start) it:
 
-1. Fetches the **Want to Read** list of the Hardcover account whose token is
-   used (see "Hardcover token"). The list is read straight from Hardcover;
-   it doesn't need to be in Calibre.
+1. Fetches the **Want to Read** list from Hardcover, with the Hardcover
+   token loaded from Calibre-Web Automated (your CWA profile, see "Hardcover
+   token"); nothing has to be set in this app. The list is read straight
+   from Hardcover; it doesn't need to be in Calibre.
 2. Skips books already in your Calibre library (Shelfmark's library check).
 3. Searches each other book in the sources you set up in Shelfmark (with
    your language settings) and picks a release whose title and author match,
@@ -181,6 +182,7 @@ and never logged. Downloads it queues are done as Shelfmark's first admin.
 | Option | Description |
 |---|---|
 | `hardcover_token` | Optional. Hardcover API token. Empty (default): the token from the Calibre-Web Automated app. |
+| `tor` | Route all of Shelfmark's internet traffic through Tor (default off). See "Tor" below. |
 | `ingress_auto_login` | Log in automatically from Home Assistant as the Calibre-Web Automated Ingress user (default on). See above. |
 | `use_cwa_login` | When not logged in automatically: log in with the Calibre-Web Automated users and their passwords (default on). Turn off to set up login in Shelfmark's settings. |
 | `want_to_read_auto_download` | Download the books on your Hardcover Want to Read list automatically (default on). See above. |
@@ -188,6 +190,34 @@ and never logged. Downloads it queues are done as Shelfmark's first admin.
 | `extra_env` | Advanced: `name`/`value` pairs for other [Shelfmark environment variables](https://github.com/calibrain/shelfmark/blob/main/docs/environment-variables.md). These override the values above, including the fixed settings. |
 
 The time zone is taken from Home Assistant.
+
+## Tor
+
+Turn on `tor` in the app's **Configuration** tab and restart the app to send
+all of Shelfmark's internet traffic through [Tor](https://www.torproject.org/):
+searches, mirrors, downloads and the Hardcover API. The sources then don't see
+your IP address, and your internet provider only sees Tor traffic. Traffic
+inside your own network, such as Home Assistant Ingress, is not affected.
+Turn it off and restart to go back.
+
+How it works: the image already contains Tor. At startup Shelfmark starts
+Tor, waits until it is connected, and then redirects all outgoing traffic
+through it with iptables, which is why the app has the `NET_ADMIN` and
+`NET_RAW` permissions (Home Assistant can't grant them only when the option is
+on). Shelfmark's network settings then show Tor routing as on.
+
+Things to know:
+
+- Starting takes up to a few minutes while Tor connects. Ingress shows a
+  "starting" page in the meantime.
+- If Tor does not connect, or traffic turns out not to go through Tor, the
+  app stops instead of sending traffic outside Tor. Turn on **Watchdog** on
+  the app's page to have Home Assistant restart it.
+- Many sites block Tor or show more captchas (Cloudflare, DDoS-Guard), and
+  downloads are slower. Some mirrors, or Hardcover, may not work over Tor.
+- The Hardcover token check at startup runs before Tor starts.
+- Tor sets the app's time zone from its exit node; this only affects times
+  shown in Shelfmark's own log.
 
 ## Where the data lives
 

@@ -4,7 +4,7 @@
 Calibre-Web can log users in from a reverse proxy header. The ingress nginx
 proxy sets that header to the CWA user to log in as. The header gets a
 random name per installation, stored in the app config folder, so that it
-cannot be forged on the direct port 8083: only nginx on the ingress port,
+cannot be forged on the direct port 8084: only nginx on the ingress port,
 which only the Supervisor can reach, knows it.
 
 Exit codes: 0 = settings already correct, 10 = settings changed (restart

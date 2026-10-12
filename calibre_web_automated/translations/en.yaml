@@ -34,7 +34,7 @@ configuration:
     name: Log in automatically in Home Assistant
     description: >-
       Opening the app from Home Assistant logs you in as the CWA admin (or
-      the user below) without a login page. The direct port 8083 still asks
+      the user below) without a login page. The direct port 8084 still asks
       for a password. Every Home Assistant user who can open the panel gets
       this access.
   ingress_user:
@@ -46,4 +46,4 @@ configuration:
     name: Extra environment variables
     description: Advanced, additional CWA environment variables.
 network:
-  8083/tcp: Web interface, OPDS and Kobo sync (direct access)
+  8084/tcp: Web interface, OPDS and Kobo sync (direct access)

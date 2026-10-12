@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0.6
+## 1.4.0.7
 
 Still based on Shelfmark v1.4.0.
 
@@ -10,6 +10,15 @@ Still based on Shelfmark v1.4.0.
   default on, and `want_to_read_interval_hours`, default 6), skips books
   already in your Calibre library and queues the best EPUB (or other format
   CWA imports) through Shelfmark, so it shows up under Activity
+
+## 1.4.0.6
+
+Still based on Shelfmark v1.4.0.
+
+- New option `tor` (default off) to route all of Shelfmark's traffic through
+  Tor, using the Tor support already in the Shelfmark image. The app now has
+  the `NET_ADMIN` and `NET_RAW` permissions this needs, and a watchdog
+  (TCP on the Ingress port) so Home Assistant can restart it when it stops
 
 ## 1.4.0.5
 

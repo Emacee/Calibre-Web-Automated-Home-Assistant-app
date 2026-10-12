@@ -3,14 +3,14 @@
 This app runs [Calibre-Web Automated](https://github.com/crocodilestick/Calibre-Web-Automated)
 (CWA) on your Home Assistant machine: a Calibre-Web e-book library with a web
 reader, plus automatic import, conversion and metadata handling. It opens inside
-Home Assistant via Ingress (optionally as **Books** in the sidebar), and can also be reached directly
-on port 8083 for e-readers.
+Home Assistant via Ingress (optionally as **Calibre** in the sidebar), and can also be reached directly
+on port 8084 for e-readers.
 
 ## First start
 
 1. Install and start the app. The first start takes a minute or two.
 2. Click **Open web UI** on the app's page. Turn on **Show in sidebar** to get
-   a **Books** entry in the sidebar.
+   a **Calibre** entry in the sidebar.
 3. Log in with the CWA default account **`admin` / `admin123`** and change the
    password right away under **Admin → Edit users**.
 
@@ -73,16 +73,16 @@ needs no setup of its own. Restart Shelfmark after changing these options here.
 
 ## Direct access, OPDS and Kobo sync
 
-Port **8083** is open by default at `http://homeassistant.local:8083`. E-readers
+Port **8084** is open by default at `http://homeassistant.local:8084`. E-readers
 cannot use Ingress (it needs a Home Assistant login), so you need this port for:
 
-- OPDS catalogue: `http://homeassistant.local:8083/opds`
+- OPDS catalogue: `http://homeassistant.local:8084/opds`
 - Kobo sync (enable it in **Admin → Edit Basic Configuration → Feature
   Configuration**, then follow the CWA wiki)
 - KOReader sync
 
 If you only use the browser, you can disable the port in the app's
-**Network** section. Don't expose port 8083 to the internet without a reverse
+**Network** section. Don't expose port 8084 to the internet without a reverse
 proxy with HTTPS.
 
 ## Automatic login in Home Assistant
@@ -90,12 +90,12 @@ proxy with HTTPS.
 When you open the app from Home Assistant (Ingress), you are logged in
 automatically as the CWA admin, without a login page. The first admin user is
 used, or the user set in `ingress_user`. E-readers and browsers on the direct
-port 8083 still have to log in with a password.
+port 8084 still have to log in with a password.
 
 How it works: Calibre-Web's reverse proxy login is switched on with a header
 name that is random for each installation, stored in `.ha-ingress-login` in
 the app config folder. Only the Ingress proxy, which only Home Assistant can
-reach, sends that header, so it cannot be forged on port 8083. The header
+reach, sends that header, so it cannot be forged on port 8084. The header
 name is never written to the log. On the very first start Calibre-Web
 restarts once to apply the setting.
 
@@ -117,8 +117,8 @@ duplicates) build URLs in JavaScript; nginx rewrites those to include the
 prefix.
 
 ```
-Browser / HA app ──▶ HA Ingress ──▶ nginx :8099 ──▶ CWA :8083
-E-reader (OPDS/Kobo) ─────────────────────────────▶ CWA :8083
+Browser / HA app ──▶ HA Ingress ──▶ nginx :8099 ──▶ CWA :8084
+E-reader (OPDS/Kobo) ─────────────────────────────▶ CWA :8084
 ```
 
 The upstream image declares Docker volumes for `/config`, `/calibre-library` and

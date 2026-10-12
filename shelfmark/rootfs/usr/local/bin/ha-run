@@ -191,6 +191,17 @@ fi
 export PUID=911
 export PGID=911
 
+# --- Tor --------------------------------------------------------------------
+# Shelfmark's entrypoint starts Tor and redirects all outgoing traffic
+# through it (tor.sh) when USING_TOR is set; it needs root and NET_ADMIN,
+# both of which this app has. Anything above that talks to the internet
+# (the Hardcover token check) has already run without Tor.
+TOR="off"
+if [ "$(opt_bool '.tor')" = "true" ]; then
+    export USING_TOR=true
+    TOR="on (starting takes up to a few minutes)"
+fi
+
 # --- Extra environment variables (last, so they can override the above) ----
 while IFS=$'\t' read -r name value; do
     [ -z "$name" ] && continue
@@ -205,6 +216,7 @@ log "Library button : ${CALIBRE_WEB_URL:-off}"
 log "Hardcover token: $HARDCOVER_SOURCE"
 log "Login          : $LOGIN"
 log "Want to Read   : $WANT_TO_READ"
+log "Tor            : $TOR"
 
 # --- Ingress proxy ----------------------------------------------------------
 nginx -c /etc/nginx/ha-ingress.conf

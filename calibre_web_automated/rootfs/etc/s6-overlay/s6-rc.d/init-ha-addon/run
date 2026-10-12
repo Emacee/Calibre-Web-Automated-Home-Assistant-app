@@ -75,6 +75,9 @@ rm "$DIRS_JSON.tmp"
 setenv WATCH_FOLDER "$INGEST_PATH"
 
 # --- Options -> environment ------------------------------------------------
+# CWA builds Kobo sync URLs from the port it listens on, so it must listen
+# on the same port the app publishes on the host
+setenv CWA_PORT_OVERRIDE 8084
 setenv NETWORK_SHARE_MODE "$NETWORK_SHARE_MODE"
 setenv CWA_WATCH_MODE "$(opt '.watch_mode')"
 setenv DISABLE_LIBRARY_AUTOMOUNT "$(opt_bool '.disable_library_automount')"
