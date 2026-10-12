@@ -50,5 +50,5 @@ ENV PATH="/lsiopy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/b
 ENV S6_BEHAVIOUR_IF_STAGE2_FAILS="2"
 
 WORKDIR /config
-EXPOSE 8083 8099
+EXPOSE 8084 8099
 ENTRYPOINT ["/init"]

@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.14
+
+Still based on Calibre-Web Automated v4.0.8.
+
+- CWA now listens on port 8084 and the app publishes it on 8084 (was
+  8083). CWA puts its own port in the Kobo sync URL, so that URL only works
+  when both are the same. Update the address on e-readers and OPDS apps to
+  `http://<home-assistant>:8084`, and generate the Kobo sync URL again
+- Sidebar entry renamed from "Books" to "Calibre"
+
 ## 4.0.13
 
 Still based on Calibre-Web Automated v4.0.8.
