@@ -167,7 +167,9 @@ fi
 # watcher in this app uses it, on localhost.
 API_KEY_FILE=/config/.ha-api-key
 WANT_TO_READ="off"
-if [ "$(opt_bool '.want_to_read_auto_download')" = "true" ]; then
+WTR_DOWNLOAD="$(opt_bool '.want_to_read_auto_download')"
+WTR_MOVE="$(opt_bool '.want_to_read_move_when_imported')"
+if [ "$WTR_DOWNLOAD" = "true" ] || [ "$WTR_MOVE" = "true" ]; then
     if [ -z "${HARDCOVER_API_KEY:-}" ]; then
         WANT_TO_READ="off (no Hardcover token)"
     else
@@ -181,7 +183,10 @@ if [ "$(opt_bool '.want_to_read_auto_download')" = "true" ]; then
         unset key
         WANT_TO_READ_HOURS="$(opt '.want_to_read_interval_hours')"
         [[ "$WANT_TO_READ_HOURS" =~ ^[0-9]+$ ]] || WANT_TO_READ_HOURS=6
-        WANT_TO_READ="every $WANT_TO_READ_HOURS hour(s)"
+        export HA_WTR_DOWNLOAD="$WTR_DOWNLOAD" HA_WTR_MOVE="$WTR_MOVE"
+        WANT_TO_READ=""
+        [ "$WTR_DOWNLOAD" = "true" ] && WANT_TO_READ="download every $WANT_TO_READ_HOURS hour(s)"
+        [ "$WTR_MOVE" = "true" ] && WANT_TO_READ="${WANT_TO_READ:+$WANT_TO_READ, }imported books to Currently Reading"
     fi
 fi
 

@@ -162,8 +162,35 @@ At most 10 books are queued per check; the rest follow in the next check. A
 book for which nothing was found is searched again after a day; a book that
 was queued but is still not in the library after a week is searched again.
 This is kept in `.ha-want-to-read.json` in this app's config folder (delete
-it to start afresh). Books are not removed from your Hardcover list; once
-CWA has imported them they are simply skipped.
+it to start afresh).
+
+## Imported books move to Currently Reading
+
+With `want_to_read_move_when_imported` (on by default) your Hardcover lists
+follow your library:
+
+| Hardcover status | Meaning |
+|---|---|
+| **Want to Read** | Still to download |
+| **Currently Reading** | In your Calibre library |
+
+Every 15 minutes the app checks Want to Read; each book that Shelfmark's
+library check finds in your Calibre library (so downloaded and successfully
+imported by CWA) is moved to **Currently Reading**. Hardcover keeps one
+reading status per book, so it leaves Want to Read at the same moment. The
+log shows `[want-to-read] 'Title': in the library, moved from Want to Read to
+Currently Reading`.
+
+- This applies to every book on Want to Read that is in your library,
+  including books you added to the library yourself.
+- A failed import (the file ends up in CWA's `failed` folder) leaves the book
+  on Want to Read, so it is downloaded again later.
+- The token needs the `write:library` scope; without it the log says so and
+  the book stays on Want to Read.
+- It needs the library check, which this app turns on when it finds the CWA
+  library.
+- This works with `want_to_read_auto_download` off too, for books you
+  download by hand.
 
 What to check when nothing happens:
 
@@ -187,6 +214,7 @@ and never logged. Downloads it queues are done as Shelfmark's first admin.
 | `use_cwa_login` | When not logged in automatically: log in with the Calibre-Web Automated users and their passwords (default on). Turn off to set up login in Shelfmark's settings. |
 | `want_to_read_auto_download` | Download the books on your Hardcover Want to Read list automatically (default on). See above. |
 | `want_to_read_interval_hours` | How often the Want to Read list is checked, in hours (1-168, default 6). |
+| `want_to_read_move_when_imported` | Move books on Want to Read that are in your Calibre library to Currently Reading, every 15 minutes (default on). See above. |
 | `extra_env` | Advanced: `name`/`value` pairs for other [Shelfmark environment variables](https://github.com/calibrain/shelfmark/blob/main/docs/environment-variables.md). These override the values above, including the fixed settings. |
 
 The time zone is taken from Home Assistant.

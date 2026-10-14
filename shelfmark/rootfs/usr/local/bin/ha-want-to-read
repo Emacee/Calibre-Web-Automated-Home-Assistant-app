@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Download the books on your Hardcover Want to Read list automatically.
+"""Keep your Hardcover Want to Read list and your Calibre library in step.
+
+  Want to Read      = still to download
+  Currently Reading = in the Calibre library
 
 Shelfmark itself has no background automation: it only searches when you
 search. This watcher runs next to it, and every few hours goes through the
@@ -11,11 +14,16 @@ Shelfmark's own API (so the same sources, languages and library check apply):
   3. it queues the best match in a format CWA imports; the download lands in
      the CWA ingest folder and shows up under Activity in Shelfmark
 
+Books on Want to Read that are in the Calibre library (downloaded and
+imported by CWA) are moved to Currently Reading. That check runs every
+STATUS_INTERVAL seconds, so a book moves soon after CWA has imported it.
+
 What was queued or not found is kept in /config/.ha-want-to-read.json, so a
 book is not downloaded twice while CWA imports it and a search that found
 nothing is only retried a day later.
 
-Usage: ha-want-to-read <interval in hours>   (needs SHELFMARK_API_KEY)
+Usage: ha-want-to-read <download interval in hours>   (needs SHELFMARK_API_KEY)
+HA_WTR_DOWNLOAD / HA_WTR_MOVE ("true"/"false") switch the two parts on or off.
 """
 
 import json
@@ -32,6 +40,11 @@ BASE = f"http://127.0.0.1:{os.environ.get('FLASK_PORT', '8084')}/api"
 KEY = os.environ.get("SHELFMARK_API_KEY", "")
 STATE_FILE = "/config/.ha-want-to-read.json"
 WANT_TO_READ = "status:1"  # Hardcover reading status 1 = Want to Read
+CURRENTLY_READING = "status:2"  # Hardcover reading status 2 = Currently Reading
+DOWNLOAD = os.environ.get("HA_WTR_DOWNLOAD", "true") == "true"
+MOVE = os.environ.get("HA_WTR_MOVE", "true") == "true"
+STATUS_INTERVAL = 15 * 60  # how often imported books are moved to Currently Reading
+MOVE_FAILED = set()  # books whose move failed, so the warning is logged once
 
 MAX_PER_RUN = 10  # releases queued per run, the rest waits for the next run
 RETRY_NOT_FOUND = 24 * 3600  # nothing found: search again after a day
@@ -49,7 +62,7 @@ def log(msg):
     print(f"[want-to-read] {msg}", flush=True)
 
 
-def api(path, params=None, body=None, timeout=60):
+def api(path, params=None, body=None, timeout=60, method=None):
     url = BASE + path
     if params:
         url += "?" + urllib.parse.urlencode(params)
@@ -58,7 +71,7 @@ def api(path, params=None, body=None, timeout=60):
     if body is not None:
         data = json.dumps(body).encode()
         headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(url, data=data, headers=headers)
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read() or b"{}")
@@ -202,8 +215,49 @@ def owned(book):
     return bool(library and library.get("ebook"))
 
 
+def move_imported(books):
+    """Move books that are in the library to Currently Reading.
+
+    Hardcover keeps one reading status per book, so setting Currently Reading
+    also takes the book off Want to Read. Returns the books still on the list.
+    """
+    remaining = []
+    for book in books:
+        if not owned(book):
+            remaining.append(book)
+            continue
+        book_id = str(book.get("provider_id"))
+        label = f"'{book.get('title')}'"
+        try:
+            api(
+                f"/metadata/book/hardcover/{urllib.parse.quote(book_id)}/targets",
+                body={"target": CURRENTLY_READING, "selected": True},
+                method="PUT",
+            )
+        except RuntimeError as e:
+            # Logged once per book, the check repeats every 15 minutes
+            if book_id not in MOVE_FAILED:
+                MOVE_FAILED.add(book_id)
+                log(f"{label}: in the library, but could not move it to Currently Reading: {e} "
+                    "(the Hardcover token needs the write:library scope)")
+            remaining.append(book)
+            continue
+        MOVE_FAILED.discard(book_id)
+        log(f"{label}: in the library, moved from Want to Read to Currently Reading")
+    return remaining
+
+
+def sync_statuses():
+    books = want_to_read()
+    if not any(b.get("library") is not None for b in books):
+        return  # library check off: nothing is known to be imported
+    move_imported(books)
+
+
 def run_once():
     books = want_to_read()
+    if MOVE:
+        books = move_imported(books)
     state = load_state()
     now = time.time()
     on_list = {str(b.get("provider_id")) for b in books}
@@ -284,16 +338,23 @@ def main():
         log("ERROR: no SHELFMARK_API_KEY, not starting")
         return
     time.sleep(FIRST_RUN_DELAY)
+    next_download = 0.0
     while True:
+        download_due = DOWNLOAD and time.time() >= next_download
         if wait_for_shelfmark():
             try:
-                run_once()
+                if download_due:
+                    run_once()
+                elif MOVE:
+                    sync_statuses()
             except (RuntimeError, OSError, ValueError) as e:
                 log(f"Check failed: {e}")
         else:
             log("Shelfmark does not answer, trying again next run")
-        log(f"Next check in {interval // 3600} hour(s)")
-        time.sleep(interval)
+        if download_due:
+            next_download = time.time() + interval
+            log(f"Next download check in {interval // 3600} hour(s)")
+        time.sleep(STATUS_INTERVAL if MOVE else interval)
 
 
 if __name__ == "__main__":

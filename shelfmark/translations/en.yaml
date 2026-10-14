@@ -33,7 +33,13 @@ configuration:
       least one source set up in Shelfmark.
   want_to_read_interval_hours:
     name: Want to Read check interval (hours)
-    description: How often the Want to Read list is checked (1-168 hours).
+    description: How often the Want to Read list is checked for books to download (1-168 hours).
+  want_to_read_move_when_imported:
+    name: Move imported books to Currently Reading
+    description: >-
+      Every 15 minutes, move books on Want to Read that are in your Calibre
+      library to Currently Reading on Hardcover. Want to Read then means
+      "still to download". Needs the write:library scope on the token.
   extra_env:
     name: Extra environment variables
     description: Advanced, additional Shelfmark environment variables.

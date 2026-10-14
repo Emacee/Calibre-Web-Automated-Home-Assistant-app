@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0.8
+
+Still based on Shelfmark v1.4.0.
+
+- Books on your Hardcover **Want to Read** list that are in your Calibre
+  library (downloaded and imported) are moved to **Currently Reading**,
+  checked every 15 minutes. Want to Read is now "still to download",
+  Currently Reading "in the library". New option
+  `want_to_read_move_when_imported` (default on); needs the `write:library`
+  scope on the Hardcover token
+
 ## 1.4.0.7
 
 Still based on Shelfmark v1.4.0.

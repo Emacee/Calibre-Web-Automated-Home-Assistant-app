@@ -1,5 +1,5 @@
 name: Shelfmark
-version: "1.4.0.7"
+version: "1.4.0.8"
 slug: shelfmark
 description: >-
   Search and download books, also from your Hardcover lists, straight into
@@ -60,6 +60,7 @@ options:
   use_cwa_login: true
   want_to_read_auto_download: true
   want_to_read_interval_hours: 6
+  want_to_read_move_when_imported: true
   extra_env: []
 
 schema:
@@ -69,6 +70,7 @@ schema:
   use_cwa_login: bool
   want_to_read_auto_download: bool
   want_to_read_interval_hours: int(1,168)
+  want_to_read_move_when_imported: bool
   extra_env:
     - name: str
       value: str
