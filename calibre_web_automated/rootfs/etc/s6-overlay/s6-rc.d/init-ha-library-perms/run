@@ -11,6 +11,9 @@ if [ "${NETWORK_SHARE_MODE}" = "true" ]; then
     exit 0
 fi
 
+# Only what is not abc:abc yet: chown -R rewrites the inode of every book
+# and cover on every start, which on a large library on a HDD or network
+# share takes minutes. The end result is the same.
 LIBRARY="$(readlink -f /calibre-library)"
 echo "[ha-addon] Setting ownership of $LIBRARY to abc:abc..."
-chown -R abc:abc "$LIBRARY"
+find "$LIBRARY" \( ! -user abc -o ! -group abc \) -exec chown abc:abc {} +

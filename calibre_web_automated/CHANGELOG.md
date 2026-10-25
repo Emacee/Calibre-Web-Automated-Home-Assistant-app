@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.0.15
+
+Still based on Calibre-Web Automated v4.0.8.
+
+- Faster start with a large library: ownership is only set on files and
+  folders that are not `abc:abc` yet, instead of on every book and cover at
+  every start (`chown -R`). The result is the same
+- The image build installs the Ubuntu security updates published since the
+  upstream image (among them ImageMagick and Ghostscript, which process every
+  book and cover)
+
 ## 4.0.14
 
 Still based on Calibre-Web Automated v4.0.8.

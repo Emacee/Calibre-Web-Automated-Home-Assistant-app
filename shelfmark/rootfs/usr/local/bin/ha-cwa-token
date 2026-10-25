@@ -137,8 +137,9 @@ def probe(token, query="query { me { id username } }"):
     """Ask Hardcover who this token belongs to, like Shelfmark's Test Connection.
 
     Returns ("ok", username), ("limited", reason) for a valid token missing
-    a scope, ("rejected", reason) or ("unknown", reason) when Hardcover could
-    not be reached.
+    a scope, ("rejected", reason), ("unreachable", reason) when Hardcover
+    could not be reached, or ("unknown", reason) for an answer that says
+    nothing about the token.
     """
     request = urllib.request.Request(
         API_URL,
@@ -163,7 +164,9 @@ def probe(token, query="query { me { id username } }"):
         if exc.code in (401, 403):
             return "rejected", reason
         return "unknown", reason
-    except (OSError, ValueError) as exc:
+    except OSError as exc:
+        return "unreachable", str(exc)
+    except ValueError as exc:
         return "unknown", str(exc)
     if body.get("errors"):
         # Authenticated, but this query is not allowed: a scope is missing
@@ -209,6 +212,11 @@ def choose(found):
         else:
             log(f"WARNING: could not check the token from {source} with Hardcover ({detail})")
             fallback = fallback or (f"{source}, not verified", token)
+            if result == "unreachable":
+                # Hardcover is down or there is no internet: the other tokens
+                # would each wait out the same timeout, and the first one not
+                # verified is what gets used anyway
+                break
     if fallback:
         return fallback
     if found:

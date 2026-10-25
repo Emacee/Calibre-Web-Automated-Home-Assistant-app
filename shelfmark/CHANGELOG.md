@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.1.1
+
+Still based on Shelfmark v1.5.1.
+
+- The image build installs the Debian security updates published since the
+  upstream image. Chromium stays at the version Shelfmark pins
+- Starts faster when Hardcover cannot be reached: the Hardcover token check
+  stops after the first connection failure instead of waiting for a timeout
+  for every token it finds. The token that is used is the same
+
 ## 1.5.1
 
 Based on Shelfmark v1.5.1 (was v1.4.0). Mainly security and data-safety

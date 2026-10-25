@@ -12,7 +12,12 @@ ARG CWA_VERSION=v4.0.8
 FROM crocodilestick/calibre-web-automated:${CWA_VERSION} AS cwa
 
 # nginx: ingress proxy (X-Ingress-Path -> X-Script-Name)
+# apt-get upgrade: the upstream image is only as current as its release, so
+# this applies the Ubuntu security fixes published since (ImageMagick and
+# Ghostscript, which open every uploaded book and cover, among them) each
+# time the app is built.
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nginx \
     && rm -rf /var/lib/apt/lists/* /etc/nginx/sites-enabled/*
 
