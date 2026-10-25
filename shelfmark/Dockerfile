@@ -4,7 +4,7 @@
 # between that turns the app options (and what the Calibre-Web Automated app
 # shares) into Shelfmark's environment variables and starts an nginx proxy
 # for Home Assistant Ingress.
-ARG SHELFMARK_VERSION=v1.4.0
+ARG SHELFMARK_VERSION=v1.5.1
 
 FROM ghcr.io/calibrain/shelfmark:${SHELFMARK_VERSION}
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.1
+
+Based on Shelfmark v1.5.1 (was v1.4.0). Mainly security and data-safety
+fixes upstream:
+
+- Only an admin may use the Hardcover account's lists and shelves (add or
+  remove books, change read status, the List filter). Home Assistant users
+  without the admin role in Calibre-Web Automated no longer see them. The
+  Want to Read watcher is unaffected: Shelfmark treats its API key as admin
+- Secrets, file links and server paths kept out of logs, error responses
+  and status messages of non-admins
+- Users can no longer see or change each other's activity items; the
+  request policy now also applies to listing releases; cover cache keyed by
+  image URL instead of a caller-supplied id
+- Soulseek (slskd): unsafe peer paths are refused
+- Downloads: no longer deletes user data or loses completed downloads
+- Tor runs as `debian-tor` instead of root and survives container restarts
+- Newer Python (3.14.8), Chromium (155) and dependencies (oauthlib 4.0.0);
+  no C compiler and no pip in the image anymore
+
 ## 1.4.0.8
 
 Still based on Shelfmark v1.4.0.
