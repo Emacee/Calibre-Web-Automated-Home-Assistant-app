@@ -174,9 +174,18 @@ follow your library:
 | **Want to Read** | Still to download |
 | **Currently Reading** | In your Calibre library |
 
-Every 15 minutes the app checks Want to Read; each book that Shelfmark's
-library check finds in your Calibre library (so downloaded and successfully
-imported by CWA) is moved to **Currently Reading**. Hardcover keeps one
+Every 15 minutes the app checks Want to Read; each book that is in your
+Calibre library (so downloaded and successfully imported by CWA) is moved to
+**Currently Reading**. A book counts as in the library when:
+
+- Shelfmark's library check finds it (by Hardcover ID, ISBN, or title and
+  author), or
+- the watcher downloaded it, and a book added to Calibre since that download
+  has the Hardcover title or the downloaded release title, with a matching
+  author. This covers imports whose title differs from Hardcover's (a
+  subtitle, a translation), which the strict library check misses.
+
+ Hardcover keeps one
 reading status per book, so it leaves Want to Read at the same moment. The
 log shows `[want-to-read] 'Title': in the library, moved from Want to Read to
 Currently Reading`.
@@ -191,6 +200,20 @@ Currently Reading`.
   library.
 - This works with `want_to_read_auto_download` off too, for books you
   download by hand.
+
+What to check when a book stays on Want to Read:
+
+- `'Title': downloaded N hour(s) ago (...), but not found in the Calibre
+  library` in the log: the download was queued, but no matching book arrived
+  in Calibre. Check Shelfmark's **Activity** (did the download finish?) and
+  the CWA app's config folder, `processed_books/failed` (did the import
+  fail?). If the book is in Calibre under a quite different title or author,
+  fix its metadata in CWA (or let CWA add a Hardcover ID, see its
+  **Run Hardcover Auto-Fetch**); the next check then finds it.
+- `could not move it to Currently Reading` in the log: the token misses the
+  `write:library` scope.
+- A book you downloaded by hand in Shelfmark is only recognised by the
+  library check (Hardcover ID, ISBN, or title and author).
 
 What to check when nothing happens:
 

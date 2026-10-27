@@ -28,10 +28,12 @@ HA_WTR_DOWNLOAD / HA_WTR_MOVE ("true"/"false") switch the two parts on or off.
 
 import json
 import os
+import sqlite3
 import re
 import sys
 import time
 import unicodedata
+from datetime import datetime, timezone
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -45,6 +47,8 @@ DOWNLOAD = os.environ.get("HA_WTR_DOWNLOAD", "true") == "true"
 MOVE = os.environ.get("HA_WTR_MOVE", "true") == "true"
 STATUS_INTERVAL = 15 * 60  # how often imported books are moved to Currently Reading
 MOVE_FAILED = set()  # books whose move failed, so the warning is logged once
+NOT_IMPORTED_AFTER = 2 * 3600  # downloaded this long ago and not in the library: say so
+LIBRARY_DB = os.environ.get("CALIBRE_LIBRARY_DB_PATH", "")
 
 MAX_PER_RUN = 10  # releases queued per run, the rest waits for the next run
 RETRY_NOT_FOUND = 24 * 3600  # nothing found: search again after a day
@@ -215,19 +219,100 @@ def owned(book):
     return bool(library and library.get("ebook"))
 
 
-def move_imported(books):
+def calibre_books_since(since):
+    """(title, authors) of the Calibre books added at or after ``since`` (epoch)."""
+    if not LIBRARY_DB or not os.path.exists(LIBRARY_DB):
+        return []
+    try:
+        conn = sqlite3.connect(f"file:{LIBRARY_DB}?mode=ro", uri=True, timeout=10)
+        try:
+            rows = conn.execute(
+                "SELECT b.title, b.timestamp, group_concat(a.name, '|') FROM books b "
+                "LEFT JOIN books_authors_link l ON l.book = b.id "
+                "LEFT JOIN authors a ON a.id = l.author GROUP BY b.id"
+            ).fetchall()
+        finally:
+            conn.close()
+    except sqlite3.Error as e:
+        log(f"Could not read the Calibre library: {e}")
+        return []
+    result = []
+    for title, stamp, authors in rows:
+        try:
+            added = datetime.fromisoformat(str(stamp).replace(" ", "T"))
+            if added.tzinfo is None:
+                added = added.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if added.timestamp() >= since:
+            result.append((title or "", (authors or "").split("|")))
+    return result
+
+
+def imported_by_watcher(book, entry, calibre_cache):
+    """True if a book this watcher downloaded has arrived in the Calibre library.
+
+    Shelfmark's library check is strict on purpose, and the title CWA imports
+    is the one in the downloaded file, which can differ from Hardcover's (a
+    subtitle, a translated title, another spelling of the author). For its own
+    downloads the watcher knows more: what it downloaded and when. A Calibre
+    book added since then whose title matches the Hardcover or the release
+    title, with a matching author surname, is that download.
+    """
+    if entry.get("status") != "queued":
+        return False
+    since = entry.get("time", 0) - 300
+    if since not in calibre_cache:
+        calibre_cache[since] = calibre_books_since(since)
+    titles = title_candidates(book)
+    for key in ("release_title",):
+        if entry.get(key):
+            titles += title_candidates({"title": entry[key]})
+    surnames = author_names(book)
+    if entry.get("release_author"):
+        surnames |= {words(n)[-1] for n in re.split(r"[,&;]| and ", entry["release_author"]) if words(n)}
+    for cal_title, cal_authors in calibre_cache[since]:
+        cal_words = set(words(cal_title))
+        if not any(t and set(t) <= cal_words for t in titles):
+            continue
+        cal_surnames = {w for a in cal_authors for w in words(a)}
+        if surnames and cal_surnames and not surnames & cal_surnames:
+            continue
+        return True
+    return False
+
+
+def move_imported(books, state=None):
     """Move books that are in the library to Currently Reading.
 
-    Hardcover keeps one reading status per book, so setting Currently Reading
-    also takes the book off Want to Read. Returns the books still on the list.
+    In the library = Shelfmark's library check says so, or (for downloads by
+    this watcher) the download has shown up in Calibre. Hardcover keeps one
+    reading status per book, so setting Currently Reading also takes the book
+    off Want to Read. Returns the books still on the list.
     """
+    state = load_state() if state is None else state
+    calibre_cache = {}
+    now = time.time()
     remaining = []
     for book in books:
-        if not owned(book):
-            remaining.append(book)
-            continue
         book_id = str(book.get("provider_id"))
         label = f"'{book.get('title')}'"
+        entry = state.get(book_id) or {}
+        if owned(book):
+            how = "in the library"
+        elif imported_by_watcher(book, entry, calibre_cache):
+            how = "downloaded and imported into the library"
+        else:
+            if (entry.get("status") == "queued" and not entry.get("reported")
+                    and now - entry.get("time", 0) > NOT_IMPORTED_AFTER):
+                entry["reported"] = True
+                save_state(state)
+                log(f"{label}: downloaded {int((now - entry['time']) // 3600)} hour(s) ago "
+                    f"({entry.get('release_title') or 'release title unknown'}), but not found "
+                    "in the Calibre library. Check Shelfmark's Activity for the download and "
+                    "CWA's processed_books/failed folder for a failed import")
+            remaining.append(book)
+            continue
         try:
             api(
                 f"/metadata/book/hardcover/{urllib.parse.quote(book_id)}/targets",
@@ -243,15 +328,14 @@ def move_imported(books):
             remaining.append(book)
             continue
         MOVE_FAILED.discard(book_id)
-        log(f"{label}: in the library, moved from Want to Read to Currently Reading")
+        if state.pop(book_id, None) is not None:
+            save_state(state)
+        log(f"{label}: {how}, moved from Want to Read to Currently Reading")
     return remaining
 
 
 def sync_statuses():
-    books = want_to_read()
-    if not any(b.get("library") is not None for b in books):
-        return  # library check off: nothing is known to be imported
-    move_imported(books)
+    move_imported(want_to_read())
 
 
 def run_once():
@@ -316,7 +400,13 @@ def run_once():
             continue
         queued += 1
         log(f"{label}: queued {release.get('format')} from {release.get('indexer') or release['source']}")
-        state[book_id] = {"status": "queued", "time": now, "title": book.get("title")}
+        state[book_id] = {
+            "status": "queued",
+            "time": now,
+            "title": book.get("title"),
+            "release_title": release.get("title"),
+            "release_author": (release.get("extra") or {}).get("author"),
+        }
         save_state(state)
 
     save_state(state)

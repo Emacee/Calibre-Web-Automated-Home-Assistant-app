@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.1.2
+
+Still based on Shelfmark v1.5.1.
+
+- Books the Want to Read watcher downloaded are now moved to Currently
+  Reading once they are imported, also when Shelfmark's library check does
+  not recognise them. That check is strict on purpose, and CWA imports the
+  title and author written in the file, which often differ from Hardcover's
+  (a subtitle, a translated title, another spelling of the author), so such
+  books stayed on Want to Read without any log line. The watcher now also
+  looks in the Calibre library for a book added since the download whose
+  title matches the Hardcover or the downloaded release title, with a
+  matching author
+- A book downloaded more than 2 hours ago that is still not found in the
+  library is now logged once, with where to look
+
 ## 1.5.1.1
 
 Still based on Shelfmark v1.5.1.

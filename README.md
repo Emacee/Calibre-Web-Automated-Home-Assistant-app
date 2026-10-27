@@ -31,7 +31,7 @@ Ingress support works.
 | App | Version | Based on |
 |---|---|---|
 | [Calibre-Web Automated](calibre_web_automated) | 4.0.15 | [crocodilestick/calibre-web-automated](https://hub.docker.com/r/crocodilestick/calibre-web-automated) v4.0.8 |
-| [Shelfmark](shelfmark) | 1.5.1.1 | [calibrain/shelfmark](https://github.com/calibrain/shelfmark) v1.5.1 |
+| [Shelfmark](shelfmark) | 1.5.1.2 | [calibrain/shelfmark](https://github.com/calibrain/shelfmark) v1.5.1 |
 
 Shelfmark searches and downloads books, also from your Hardcover lists, into
 the Calibre-Web Automated ingest folder. It takes its settings (folders,
